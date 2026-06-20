@@ -1,7 +1,17 @@
 [project]
 name = "fiap-pos-ia-para-devs-fase2-tech-challenge"
 version = "0.1.0"
-description = "Add your description here"
+description = "Sistema de análise e previsão de estado nutricional com base em dados SISVAN"
 readme = "README.md"
-requires-python = ">=3.14"
-dependencies = []
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "scikit-learn>=1.3.0",
+    "matplotlib>=3.7.0",
+    "seaborn>=0.12.0",
+    "plotly>=5.14.0",
+    "streamlit>=1.28.0",
+    "joblib>=1.3.0",
+    "python-dotenv>=1.0.0",
+]
