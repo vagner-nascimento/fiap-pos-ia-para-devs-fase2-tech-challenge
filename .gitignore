@@ -216,3 +216,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+
+# Pastas de arquivos de dados
+data/
+data/raw/
+data/processed/
