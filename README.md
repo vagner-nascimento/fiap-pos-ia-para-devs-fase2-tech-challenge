@@ -2,7 +2,10 @@
 
 Este repositório contém o projeto desenvolvido para o **Tech Challenge da Fase 2** da Pós-Graduação em Inteligência Artificial para Desenvolvedores da **FIAP**.
 
-O objetivo do projeto é construir um sistema robusto de análise e previsão de estado nutricional a partir de dados do SISVAN (Sistema de Vigilância Alimentar e Nutricional), utilizando um pipeline clássico de Machine Learning combinado com um agente de inteligência artificial (LLM) baseado no padrão ReAct para interpretação clínica e análise estatística interativa.
+O objetivo do projeto é construir um sistema robusto de análise e previsão de estado nutricional a partir de dados do SISVAN (Sistema de Vigilância Alimentar e Nutricional), utilizando:
+- Um **Algoritmo Genético Co-Evolutivo** para otimização de hiperparâmetros de classificação
+- Um pipeline clássico de **Machine Learning** (RandomForest e KNN)
+- Um **Agente de Inteligência Artificial** (LLM) baseado no padrão ReAct para interpretação clínica e análise estatística interativa
 
 ---
 
@@ -114,47 +117,88 @@ Se preferir usar o ambiente virtual nativo do Python:
 ## 🖥️ Como Executar a Aplicação
 
 ### 1. Pré-processamento de Dados (`scripts/run_preprocessing.py`)
-Antes de utilizar o modelo de Machine Learning ou o painel de análise, é necessário pré-processar os dados brutos obtidos do SISVAN. O script lê os dados brutos em `data/raw`, realiza limpezas e engenharia de características e salva o resultado.
+Antes de utilizar o modelo de Machine Learning ou o painel de análise, é necessário pré-processar os dados brutos obtidos do SISVAN.
 
 Exemplo de execução básica:
 ```bash
 python scripts/run_preprocessing.py --input data/raw/estado_nutricional_sao_paulo.csv
 ```
-> [!NOTE]  
+> [!NOTE]
 > Caso os dados de entrada estejam em outra pasta ou com outro nome, forneça o caminho correspondente no parâmetro `--input`.
 
-### 2. Testes Unitários e de Integração
-Para garantir que toda a lógica de negócio e os agentes do LangChain estão funcionando sem erros na sua máquina, execute os testes unitários:
+### 2. Tuning de Hiperparâmetros com GA Co-Evolutivo (`scripts/run_tuning.py`)
+Após o pré-processamento, execute o Algoritmo Genético para encontrar os melhores hiperparâmetros:
 
 ```bash
-# Se estiver usando o ambiente virtual ativado
-pytest
+# Execução padrão
+uv run python scripts/run_tuning.py \
+  --input data/processed/estado_nutricional_clean.csv
 
-# Se estiver usando o uv
+# Com parâmetros customizados
+uv run python scripts/run_tuning.py \
+  --input data/processed/estado_nutricional_clean.csv \
+  --pop-size 20 --max-generations 10 --patience 5 \
+  --aggressiveness medium --elitism \
+  --cxpb 0.7 --mutpb 0.3 --indpb 0.5 --random-seed 42
+
+# Sem elitismo
+uv run python scripts/run_tuning.py \
+  --input data/processed/estado_nutricional_clean.csv \
+  --no-elitism --aggressiveness high
+```
+
+O script gera:
+- `models/artifacts/best_model.joblib` — pipeline sklearn do modelo vencedor (RF ou KNN)
+- `models/logs/ga_history.json` — histórico completo do GA
+- `models/logs/ga_generation_stats.csv` — tabela de evolutção por geração
+
+> [!NOTE]
+> Com `pop_size=20` e `max_generations=10` (defaults), o tuning pode levar 1–2 horas nos dados completos do SISVAN. Use `--pop-size 4 --max-generations 2` para uma validação rápida.
+
+### 3. Testes Automatizados
+Para garantir que toda a lógica de negócio e os agentes do LangChain estão funcionando:
+
+```bash
+# Todos os testes (60 no total)
 uv run pytest
+
+# Apenas unitários (rápidos)
+uv run pytest tests/unit/ -v
+
+# Apenas integração (GA co-evolutivo end-to-end)
+uv run pytest tests/integration/ -v
 ```
 
 ---
 
 ## 📁 Estrutura de Diretórios Principal
 
-A estrutura básica de arquivos do repositório é organizada da seguinte maneira:
-
 ```
 ├── README.md               # Este arquivo com instruções gerais
 ├── pyproject.toml          # Definições de empacotamento e dependências
 ├── .env.example            # Modelo de variáveis de ambiente
-├── docs/                   # Documentação detalhada do projeto
-│   └── architecture.md     # Detalhamento da arquitetura técnica e do Agente
-├── src/                    # Código-fonte principal da aplicação
-│   ├── app/                # Camada da aplicação (Streamlit e Integração LLM)
-│   │   ├── llm.py          # Implementação do Agente de Saúde Nutricional ReAct
-│   │   └── pages/          # Páginas e dashboards
-│   ├── data/               # Ingestão e processamento de dados do SISVAN
-│   └── utils/              # Ferramentas auxiliares (logger, validators, persistência)
-├── scripts/                # Scripts executáveis do pipeline
-│   └── run_preprocessing.py
-└── tests/                  # Testes automatizados do projeto
+├── docs/
+│   ├── architecture.md     # Arquitetura técnica detalhada e fluxo do GA
+│   └── adr.md              # Architecture Decision Records (decisões de design)
+├── src/
+│   ├── models/             # GA Co-Evolutivo
+│   │   ├── individuo.py        # IndividuoRF e IndividuoKNN (pipeline sklearn)
+│   │   ├── ga_operators.py     # Crossover uniforme e mutação por tipo
+│   │   ├── ga_evaluator.py     # Fitness k-Fold CV (F1×0.6 + Acc×0.4)
+│   │   ├── genetic_algorithm.py # Orquestrador co-evolutivo
+│   │   └── ga_persistence.py   # Save/load JSON, CSV, joblib
+│   ├── app/                # Streamlit + Agente LLM ReAct
+│   │   ├── llm.py
+│   │   └── pages/tuning_monitor.py  # Dashboard 🧬 Tuning Genético
+│   └── utils/              # logger, persistence, validators
+├── scripts/
+│   ├── run_preprocessing.py
+│   └── run_tuning.py       # CLI do GA Co-Evolutivo
+└── tests/
+    ├── unit/               # 44 testes (operadores + evaluator)
+    └── integration/        # 16 testes (GA end-to-end)
 ```
 
-Para uma visão detalhada das decisões de arquitetura e do comportamento do Agente ReAct, consulte o documento [docs/architecture.md](file:///c:/code/fiap-pos-ia/fase-2/fiap-pos-ia-para-devs-fase2-tech-challenge/docs/architecture.md).
+Para uma visão detalhada da arquitetura técnica e do comportamento do Agente ReAct, consulte o documento [docs/architecture.md](docs/architecture.md).
+
+Para as decisões de design do Algoritmo Genético e da arquitetura geral, consulte o [docs/adr.md](docs/adr.md).
