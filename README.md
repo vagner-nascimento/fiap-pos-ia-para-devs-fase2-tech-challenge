@@ -127,33 +127,28 @@ python scripts/run_preprocessing.py --input data/raw/estado_nutricional_sao_paul
 > Caso os dados de entrada estejam em outra pasta ou com outro nome, forneça o caminho correspondente no parâmetro `--input`.
 
 ### 2. Tuning de Hiperparâmetros com GA Co-Evolutivo (`scripts/run_tuning.py`)
-Após o pré-processamento, execute o Algoritmo Genético para encontrar os melhores hiperparâmetros:
+Após o pré-processamento, execute o Algoritmo Genético para encontrar os melhores hiperparâmetros.
+
+Os defaults já estão configurados para uma execução rápida (~10-15 min), então basta passar o arquivo:
 
 ```bash
-# Execução padrão
+# Execução padrão (rápida) — 50k amostras estratificadas, pop=4, 2 gerações, k=3
 uv run python scripts/run_tuning.py \
   --input data/processed/estado_nutricional_clean.csv
-
-# Com parâmetros customizados
-uv run python scripts/run_tuning.py \
-  --input data/processed/estado_nutricional_clean.csv \
-  --pop-size 20 --max-generations 10 --patience 5 \
-  --aggressiveness medium --elitism \
-  --cxpb 0.7 --mutpb 0.3 --indpb 0.5 --random-seed 42
-
-# Sem elitismo
-uv run python scripts/run_tuning.py \
-  --input data/processed/estado_nutricional_clean.csv \
-  --no-elitism --aggressiveness high
 ```
 
-O script gera:
-- `models/artifacts/best_model.joblib` — pipeline sklearn do modelo vencedor (RF ou KNN)
-- `models/logs/ga_history.json` — histórico completo do GA
-- `models/logs/ga_generation_stats.csv` — tabela de evolutção por geração
+Para um tuning de **produção** com maior qualidade (mais lento):
 
-> [!NOTE]
-> Com `pop_size=20` e `max_generations=10` (defaults), o tuning pode levar 1–2 horas nos dados completos do SISVAN. Use `--pop-size 4 --max-generations 2` para uma validação rápida.
+```bash
+# Produção — dataset completo, pop=20, 10 gerações, k=5
+uv run python scripts/run_tuning.py \
+  --input data/processed/estado_nutricional_clean.csv \
+  --sample 200000 \
+  --pop-size 20 --max-generations 10 --patience 5 --k-folds 5
+```
+
+> [!TIP]
+> Use `--no-elitism --aggressiveness high` para forcá maior exploração do espaço de hiperparâmetros quando os resultados iniciais estiverem convergindo cedo demais.
 
 ### 3. Testes Automatizados
 Para garantir que toda a lógica de negócio e os agentes do LangChain estão funcionando:
