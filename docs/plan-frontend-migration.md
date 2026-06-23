@@ -170,12 +170,12 @@ Endpoints mínimos para substituir os imports diretos atuais.
 
 ### Fase 0 — Preparação (sem mover código)
 
-- [ ] Criar pasta `frontend/` com `pyproject.toml` mínimo (streamlit, plotly, httpx, pandas).
-- [ ] Adicionar `fastapi`, `uvicorn[standard]` ao `backend/pyproject.toml`.
-- [ ] Definir variáveis de ambiente:
+- [x] Criar pasta `frontend/` com `pyproject.toml` mínimo (streamlit, plotly, httpx, pandas).
+- [x] Adicionar `fastapi`, `uvicorn[standard]` ao `backend/pyproject.toml`.
+- [x] Definir variáveis de ambiente:
   - Backend: `LLM_API_KEY`, `DATA_PATH`, `MODEL_PATH`, `CORS_ORIGINS`
   - Frontend: `BACKEND_URL` (ex.: `http://localhost:8000`)
-- [ ] Criar `docker-compose.yml` para desenvolvimento local com dois serviços.
+- [x] Criar `docker-compose.yml` para desenvolvimento local com dois serviços.
 
 **Estimativa:** 0,5–1 dia
 
@@ -362,13 +362,13 @@ Adicionar fixture de resposta GA em `frontend/tests/fixtures/ga_results.json` pa
 
 ## 9. Checklist de conclusão
 
-- [ ] `backend/src/app/pages/` removida
-- [ ] `backend/src/app/llm.py` movido para `backend/src/agents/`
-- [ ] `frontend/app/pages/tuning_monitor.py` funcional via API
-- [ ] `streamlit` removido das dependências do backend
-- [ ] Dois Dockerfiles (ou compose) com deploy independente
-- [ ] READMEs atualizados
-- [ ] `architecture.md` reflete arquitetura de dois serviços
+- [x] `backend/src/app/pages/` removida
+- [x] `backend/src/app/llm.py` movido para `backend/src/agents/`
+- [x] `frontend/app/pages/tuning_monitor.py` funcional via API
+- [x] `streamlit` removido das dependências do backend
+- [x] Dois Dockerfiles (ou compose) com deploy independente
+- [x] READMEs atualizados
+- [x] `architecture.md` reflete arquitetura de dois serviços
 - [ ] CI executa testes backend e lint frontend separadamente
 
 ---
