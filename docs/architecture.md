@@ -27,7 +27,7 @@ project-root/
 │
 ├── models/                 # Diretório de artefatos de IA/ML
 │   ├── artifacts/          # Modelos de Machine Learning e encoders salvos (.joblib)
-│   ├── logs/               # Histórico de execução de logs do pipeline
+│   ├── logs/               # Histórico de execução — ga_history.json, ga_generation_stats.csv
 │   └── cache/              # Dados cacheados intermediários
 │
 ├── src/                    # Código-fonte principal da aplicação
@@ -35,14 +35,20 @@ project-root/
 │   ├── data/               # Subsistema de dados e transformação
 │   │   └── __init__.py     # Definição e exportação de funções de transformação
 │   │
-│   ├── models/             # Algoritmo genético e treinamento (planejado)
-│   │   └── __init__.py
+│   ├── models/             # Algoritmo genético co-evolutivo e avaliação
+│   │   ├── __init__.py
+│   │   ├── individuo.py        # Classes Individuo (ABC), IndividuoRF, IndividuoKNN
+│   │   ├── ga_operators.py     # Operadores genéticos por tipo (crossover, mutação)
+│   │   ├── ga_evaluator.py     # Função de fitness com k-Fold CV
+│   │   ├── genetic_algorithm.py # Orquestrador GeneticAlgorithm (loop co-evolutivo)
+│   │   └── ga_persistence.py   # Save/load de resultados GA e modelos
 │   │
-│   ├── app/                # Camada de apresentação e Agente LLM (Implementado)
+│   ├── app/                # Camada de apresentação e Agente LLM
 │   │   ├── __init__.py
 │   │   ├── llm.py          # Agente Inteligente ReAct (NutritionalHealthAgent)
 │   │   └── pages/          # Telas adicionais e dashboards do Streamlit
-│   │       └── __init__.py
+│   │       ├── __init__.py
+│   │       └── tuning_monitor.py # Dashboard co-evolutivo GA (🧬 Tuning Genético)
 │   │
 │   └── utils/              # Funções utilitárias auxiliares
 │       ├── __init__.py
@@ -52,12 +58,18 @@ project-root/
 │
 ├── scripts/                # Scripts utilitários de linha de comando
 │   ├── README.md           # Descrição dos scripts disponíveis
-│   └── run_preprocessing.py # Script de execução do pré-processamento de dados
+│   ├── run_preprocessing.py # Script de execução do pré-processamento de dados
+│   └── run_tuning.py       # Script CLI do Algoritmo Genético (GA Co-Evolutivo)
+│
+├── docs/                   # Documentação do projeto
+│   ├── architecture.md     # Este arquivo — visão geral da arquitetura
+│   ├── adr.md              # Architecture Decision Records (decisões de design)
+│   └── plan-fluxo2-training-and-tunning.md # Plano de implementação do GA
 │
 └── tests/                  # Suíte de testes automatizados
     ├── __init__.py
-    ├── unit/               # Testes unitários (ex: test_llm_agent.py)
-    └── integration/        # Testes de integração de fluxos (planejado)
+    ├── unit/               # Testes unitários (operadores, evaluator, agente LLM)
+    └── integration/        # Testes de integração (GA optimizer end-to-end)
 ```
 
 ---
@@ -97,6 +109,70 @@ O agente tem acesso a três ferramentas customizadas baseadas nos dados dos paci
 
 ---
 
+## 🧬 Algoritmo Genético Co-Evolutivo
+
+O módulo de tuning de hiperparâmetros está implementado em `src/models/` e usa uma abordagem **co-evolutiva** com duas populações independentes: **RandomForest (RF)** e **KNeighborsClassifier (KNN)**.
+
+### Hierarquia de Classes
+
+```
+Individuo (ABC)
+├── IndividuoRF  → Pipeline([('clf', RandomForestClassifier(...))])
+└── IndividuoKNN → Pipeline([('scaler', StandardScaler()), ('clf', KNN(...))])
+```
+
+> KNN inclui `StandardScaler` obrigatório pois é sensível à escala das features. RF é invariante à escala e não precisa de pré-processamento adicional.
+
+### Fluxo Co-Evolutivo por Geração
+
+```mermaid
+flowchart TD
+    A["Inicializar\npop_rf + pop_knn"] --> B
+    B["Avaliar fitness global\npool = pop_rf + pop_knn\nk-Fold CV: F1×0.6 + Acc×0.4"] --> C
+    C{"Convergência?\nno_improve >= patience"}
+    C -- Sim --> Z["Parar: reason=convergence"]
+    C -- Não --> D
+    D["Seleção por torneio GLOBAL\nRF e KNN competem juntos"] --> E
+    E["Separar por tipo\n+ elitismo estrutural mínimo"] --> F
+    F{"elitism=True?"}
+    F -- Sim --> G["Salva deepcopy do best global"]
+    F -- Não --> H
+    G --> H
+    H["crossover_rf (cxUniform) + mutate_rf\ncrossover_knn (cxUniform) + mutate_knn"] --> I
+    I["Reinsere elite\n(substitui pior da sub-pop)"] --> J
+    J["Logar stats da geração\n{rf_*, knn_*, global_best_*}"] --> K
+    K{"gen >= max_generations?"}
+    K -- Sim --> L["Parar: reason=max_generations"]
+    K -- Não --> B
+```
+
+### Módulos do GA
+
+| Módulo | Responsabilidade |
+|---|---|
+| [`individuo.py`](file:///home/luizbaroni/projetos/fiap/fiap-pos-ia-para-devs-fase2-tech-challenge/src/models/individuo.py) | Hierarquia `Individuo` → `IndividuoRF` / `IndividuoKNN` com pipeline sklearn |
+| [`ga_operators.py`](file:///home/luizbaroni/projetos/fiap/fiap-pos-ia-para-devs-fase2-tech-challenge/src/models/ga_operators.py) | Geração aleatória, crossover uniforme (cxUniform em dicts nomeados), mutação com 3 níveis |
+| [`ga_evaluator.py`](file:///home/luizbaroni/projetos/fiap/fiap-pos-ia-para-devs-fase2-tech-challenge/src/models/ga_evaluator.py) | `evaluate()` agnóstico ao tipo; `fitness_score()` = F1×0.6 + Acc×0.4 |
+| [`genetic_algorithm.py`](file:///home/luizbaroni/projetos/fiap/fiap-pos-ia-para-devs-fase2-tech-challenge/src/models/genetic_algorithm.py) | `GeneticAlgorithm`: loop co-evolutivo, parada dupla, elitismo configurável |
+| [`ga_persistence.py`](file:///home/luizbaroni/projetos/fiap/fiap-pos-ia-para-devs-fase2-tech-challenge/src/models/ga_persistence.py) | `save_ga_results()` (JSON + CSV), `save_best_model()` treina e persiste via joblib |
+
+### Parâmetros Configuráveis
+
+| Parâmetro | CLI | Default | Descrição |
+|---|---|---|---|
+| `pop_size` | `--pop-size` | 20 | Indivíduos por tipo (total = 2×) |
+| `max_generations` | `--max-generations` | 10 | Critério de parada por limite |
+| `patience` | `--patience` | 5 | Gerações sem melhoria → convergência |
+| `k_folds` | `--k-folds` | 5 | Folds para Cross Validation |
+| `mutation_aggressiveness` | `--aggressiveness` | `medium` | `low` / `medium` / `high` |
+| `elitism` | `--elitism` / `--no-elitism` | `True` | Preserva melhor indivíduo |
+| `indpb` | `--indpb` | 0.5 | Prob. de swap por gene (cxUniform) |
+| `cxpb` | `--cxpb` | 0.7 | Prob. de crossover |
+| `mutpb` | `--mutpb` | 0.3 | Prob. de mutação |
+| `random_seed` | `--random-seed` | 42 | Semente para reprodutibilidade |
+
+---
+
 ## ⚙️ Variáveis de Ambiente e Configuração
 
 A inicialização dos componentes e conexões depende das variáveis configuradas no arquivo `.env`. As chaves críticas são:
@@ -115,18 +191,27 @@ A inicialização dos componentes e conexões depende das variáveis configurada
 
 ## 📈 Fluxo de Execução do Pipeline Geral
 
-O processamento e interação com o sistema se desenvolvem em três etapas macro (algumas integradas na Fase 2):
+O processamento e interação com o sistema se desenvolvem em três etapas macro:
 
 ```mermaid
 graph TD
     A[data/raw/dados.csv] -->|run_preprocessing.py| B[data/processed/dados_clean.csv]
-    B -->|Tuning Genético / run_tuning.py| C[models/artifacts/melhor_modelo.joblib]
-    C -->|Carregamento| D[Streamlit App / run_app.py]
+    B -->|run_tuning.py\nGA Co-Evolutivo| C[models/artifacts/best_model.joblib]
+    B -->|logs| D2[models/logs/ga_history.json\nga_generation_stats.csv]
+    C -->|Carregamento| D[Streamlit App / main.py]
     B -->|Carregamento de Dados| D
     D -->|Instancia| E[Agente de Saúde ReAct / llm.py]
-    E -->|Usa Chave Gemini| F[Google Gemini API]
+    D -->|Página 🧬| F[tuning_monitor.py\nDashboard GA]
+    E -->|Usa Chave Gemini| G[Google Gemini API]
 ```
 
 1. **Pipeline de Dados**: O script `run_preprocessing.py` ingere o dataset bruto em CSV, remove gestantes (se ativado), realiza imputações necessárias, executa a engenharia de features e codifica colunas qualitativas, gravando os encoders criados.
-2. **Treinamento e Tuning (Em Construção)**: Algoritmo Genético fará a busca de hiperparâmetros ótimos para o classificador de estado nutricional.
-3. **Interface Visual e Agente**: O aplicativo Streamlit unificará o monitoramento das fases com uma tela dedicada de chat, onde o `NutritionalHealthAgent` usará a chave da API do Gemini para interpretar as predições de ML sobre a base de pacientes de forma inteligente.
+
+2. **Treinamento e Tuning**: O script `run_tuning.py` executa o **GA Co-Evolutivo** sobre os dados processados. Mantém duas populações independentes (RF e KNN) que competem pelo fitness global (F1×0.6 + Acc×0.4 via k-Fold CV). Ao final, persiste:
+   - `models/artifacts/best_model.joblib` — pipeline sklearn do modelo vencedor
+   - `models/logs/ga_history.json` — histórico completo de todas as gerações
+   - `models/logs/ga_generation_stats.csv` — tabela por geração com stats de RF, KNN e global
+
+3. **Interface Visual e Agente**: O aplicativo Streamlit unificará o monitoramento das fases com:
+   - Painel **🧬 Tuning Genético** (`tuning_monitor.py`): execução interativa do GA com gráficos co-evolutivos em tempo real
+   - Painel de chat com o `NutritionalHealthAgent` (ReAct + Gemini) para interpretação clínica das predições
