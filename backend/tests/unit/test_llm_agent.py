@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, patch
 import pandas as pd
-from src.app.llm import NutritionalHealthAgent
+from src.agents.nutritional_agent import NutritionalHealthAgent
 
 # Mock response class for LangChain invoke
 class MockResponse:
@@ -8,7 +8,7 @@ class MockResponse:
         self.content = content
 
 
-@patch('src.app.llm.ChatGoogleGenerativeAI')
+@patch('src.agents.nutritional_agent.ChatGoogleGenerativeAI')
 def test_nutritional_health_agent_initialization(mock_chat_llm):
     # Set up mock behavior for LLM
     mock_instance = MagicMock()
@@ -45,7 +45,7 @@ def test_nutritional_health_agent_initialization(mock_chat_llm):
     assert mock_instance.invoke.called
 
 
-@patch('src.app.llm.ChatGoogleGenerativeAI')
+@patch('src.agents.nutritional_agent.ChatGoogleGenerativeAI')
 def test_agent_tools(mock_chat_llm):
     # Set up mock behavior for LLM
     mock_instance = MagicMock()
@@ -85,7 +85,7 @@ def test_agent_tools(mock_chat_llm):
     assert "Diretrizes Clínicas para Obesidade / Obesidade Grave" in rec_output
 
 
-@patch('src.app.llm.ChatGoogleGenerativeAI')
+@patch('src.agents.nutritional_agent.ChatGoogleGenerativeAI')
 def test_agent_ask(mock_chat_llm):
     # Set up mock behavior for LLM
     mock_instance = MagicMock()
@@ -108,7 +108,7 @@ def test_agent_ask(mock_chat_llm):
     agent = NutritionalHealthAgent(df, mappings)
 
     # Mock AgentExecutor.invoke using patch
-    with patch('src.app.llm.AgentExecutor.invoke', return_value={"output": "Resposta Mockada."}) as mock_invoke:
+    with patch('src.agents.nutritional_agent.AgentExecutor.invoke', return_value={"output": "Resposta Mockada."}) as mock_invoke:
         res = agent.ask("Qual a média de idade?")
         assert res == "Resposta Mockada."
         mock_invoke.assert_called_once_with({"input": "Qual a média de idade?"})

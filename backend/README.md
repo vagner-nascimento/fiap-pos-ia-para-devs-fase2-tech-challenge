@@ -150,7 +150,33 @@ uv run python scripts/run_tuning.py \
 > [!TIP]
 > Use `--no-elitism --aggressiveness high` para forcá maior exploração do espaço de hiperparâmetros quando os resultados iniciais estiverem convergindo cedo demais.
 
-### 3. Testes Automatizados
+### 3. API REST (FastAPI)
+
+O backend expõe uma API REST para o front-end Streamlit (deploy separado em `../frontend/`):
+
+```bash
+uv run uvicorn src.api.main:app --reload --port 8000
+```
+
+Documentação interativa: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+Endpoints principais:
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `GET` | `/health` | Health check |
+| `GET` | `/tuning/datasets` | Lista CSVs em `data/processed/` |
+| `POST` | `/tuning/run` | Executa GA Co-Evolutivo |
+| `GET` | `/tuning/jobs/{id}` | Status de job assíncrono |
+| `GET` | `/tuning/logs/latest` | Último histórico GA |
+| `POST` | `/llm/session` | Cria sessão do agente (upload CSV) |
+| `POST` | `/llm/chat` | Pergunta ao agente ReAct |
+
+### 4. Front-end Streamlit
+
+O painel visual está em `../frontend/`. Consulte [../frontend/README.md](../frontend/README.md).
+
+### 5. Testes Automatizados
 Para garantir que toda a lógica de negócio e os agentes do LangChain estão funcionando:
 
 ```bash
@@ -176,15 +202,19 @@ uv run pytest tests/integration/ -v
 │   ├── architecture.md     # Arquitetura técnica detalhada e fluxo do GA
 │   └── adr.md              # Architecture Decision Records (decisões de design)
 ├── src/
+│   ├── api/                # FastAPI — rotas REST
+│   │   ├── main.py
+│   │   └── routes/         # tuning, llm, health
+│   ├── agents/             # Agente LLM ReAct
+│   │   └── nutritional_agent.py
+│   ├── services/           # Lógica de negócio da API
+│   │   └── tuning_service.py
 │   ├── models/             # GA Co-Evolutivo
-│   │   ├── individuo.py        # IndividuoRF e IndividuoKNN (pipeline sklearn)
-│   │   ├── ga_operators.py     # Crossover uniforme e mutação por tipo
-│   │   ├── ga_evaluator.py     # Fitness k-Fold CV (F1×0.6 + Acc×0.4)
-│   │   ├── genetic_algorithm.py # Orquestrador co-evolutivo
-│   │   └── ga_persistence.py   # Save/load JSON, CSV, joblib
-│   ├── app/                # Streamlit + Agente LLM ReAct
-│   │   ├── llm.py
-│   │   └── pages/tuning_monitor.py  # Dashboard 🧬 Tuning Genético
+│   │   ├── individuo.py
+│   │   ├── ga_operators.py
+│   │   ├── ga_evaluator.py
+│   │   ├── genetic_algorithm.py
+│   │   └── ga_persistence.py
 │   └── utils/              # logger, persistence, validators
 ├── scripts/
 │   ├── run_preprocessing.py
