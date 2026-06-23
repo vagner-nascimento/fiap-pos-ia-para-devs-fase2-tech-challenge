@@ -62,14 +62,12 @@ def evaluate(
             pipeline, X, y,
             cv=k_folds,
             scoring="f1_weighted",
-            n_jobs=-1,
             error_score=0.0,
         )
         acc_scores = cross_val_score(
             pipeline, X, y,
             cv=k_folds,
             scoring="accuracy",
-            n_jobs=-1,
             error_score=0.0,
         )
 
