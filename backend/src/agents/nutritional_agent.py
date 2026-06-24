@@ -1,6 +1,8 @@
 import os
+import json
 import pandas as pd
 from typing import Dict, Any, Optional, List
+from pathlib import Path
 from dotenv import load_dotenv
 
 # LangChain imports
@@ -96,6 +98,35 @@ class NutritionalHealthAgent:
 
         # Configura o agente ReAct e seu executor
         self.agent_executor = self._setup_agent()
+
+    @classmethod
+    def from_files(cls, csv_path: str, mappings_path: str):
+        """
+        Inicializa o agente a partir de arquivos CSV e JSON de mapeamentos salvos.
+
+        Args:
+            csv_path (str): Caminho para o arquivo CSV com dados processados.
+            mappings_path (str): Caminho para o arquivo JSON com mapeamentos.
+
+        Returns:
+            NutritionalHealthAgent: Instância do agente inicializada.
+        """
+        csv_path = Path(csv_path)
+        mappings_path = Path(mappings_path)
+
+        if not csv_path.exists():
+            raise FileNotFoundError(f"Arquivo CSV não encontrado: {csv_path}")
+        if not mappings_path.exists():
+            raise FileNotFoundError(f"Arquivo de mapeamentos não encontrado: {mappings_path}")
+
+        # Carregar CSV
+        df = pd.read_csv(csv_path)
+
+        # Carregar mapeamentos JSON
+        with open(mappings_path, 'r', encoding='utf-8') as f:
+            mappings = json.load(f)
+
+        return cls(df, mappings)
 
     def _decode_dataframe(self, df: pd.DataFrame, mappings: Dict[str, Dict[str, str]]) -> pd.DataFrame:
         """

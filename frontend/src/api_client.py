@@ -72,6 +72,56 @@ class TuningClient:
             return self._handle_response(client.get("/tuning/logs/latest"))
 
 
+class PipelineClient:
+    def __init__(self, base_url: str | None = None, timeout: float = 3600.0):
+        self.base_url = (base_url or os.getenv("BACKEND_URL", DEFAULT_BACKEND_URL)).rstrip("/")
+        self.timeout = timeout
+
+    def _handle_response(self, response: httpx.Response) -> Any:
+        if response.is_success:
+            return response.json()
+        detail = response.text
+        try:
+            detail = response.json().get("detail", detail)
+        except Exception:
+            pass
+        raise ApiError(str(detail), response.status_code)
+
+    def run_preprocessing(self) -> dict:
+        with httpx.Client(base_url=self.base_url, timeout=self.timeout) as client:
+            data = self._handle_response(client.post("/pipeline/preprocess"))
+        return self._poll_job(self.base_url, data["job_id"])
+
+    def run_tuning(self, **params) -> dict:
+        with httpx.Client(base_url=self.base_url, timeout=self.timeout) as client:
+            data = self._handle_response(client.post("/pipeline/tune", json=params))
+        return self._poll_job(self.base_url, data["job_id"])
+
+    def run_predictions(self) -> dict:
+        with httpx.Client(base_url=self.base_url, timeout=self.timeout) as client:
+            data = self._handle_response(client.post("/pipeline/predict"))
+        return self._poll_job(self.base_url, data["job_id"])
+
+    def get_pipeline_status(self) -> dict:
+        with httpx.Client(base_url=self.base_url, timeout=10.0) as client:
+            return self._handle_response(client.get("/pipeline/status"))
+
+    def get_job_status(self, job_id: str) -> dict:
+        with httpx.Client(base_url=self.base_url, timeout=10.0) as client:
+            return self._handle_response(client.get(f"/pipeline/jobs/{job_id}"))
+
+    def _poll_job(self, client_base: str, job_id: str) -> dict:
+        with httpx.Client(base_url=client_base, timeout=self.timeout) as client:
+            while True:
+                status_data = self._handle_response(client.get(f"/pipeline/jobs/{job_id}"))
+                status = status_data["status"]
+                if status == "completed":
+                    return status_data
+                if status == "failed":
+                    raise ApiError(status_data.get("error") or "Job falhou")
+                time.sleep(POLL_INTERVAL_SEC)
+
+
 class LLMClient:
     def __init__(self, base_url: str | None = None, timeout: float = 120.0):
         self.base_url = (base_url or os.getenv("BACKEND_URL", DEFAULT_BACKEND_URL)).rstrip("/")
@@ -105,3 +155,7 @@ class LLMClient:
     def close_session(self, session_id: str) -> None:
         with httpx.Client(base_url=self.base_url, timeout=10.0) as client:
             self._handle_response(client.delete(f"/llm/session/{session_id}"))
+
+    def create_session_from_files(self) -> dict:
+        with httpx.Client(base_url=self.base_url, timeout=self.timeout) as client:
+            return self._handle_response(client.post("/llm/session/from-files"))

@@ -11,4 +11,6 @@ COPY . .
 
 EXPOSE 8501
 
+ENV PYTHONPATH=/app
+
 CMD ["uv", "run", "streamlit", "run", "app/main.py", "--server.port=8501", "--server.address=0.0.0.0"]

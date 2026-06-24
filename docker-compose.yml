@@ -12,6 +12,7 @@ services:
     volumes:
       - ./backend/data:/app/data
       - ./backend/models:/app/models
+    restart: unless-stopped
 
   frontend:
     build:
