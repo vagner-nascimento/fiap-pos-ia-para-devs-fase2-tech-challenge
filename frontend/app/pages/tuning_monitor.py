@@ -3,38 +3,27 @@ Dashboard Streamlit — Monitor do Algoritmo Genético Co-Evolutivo.
 
 Página: 🧬 Tuning Genético
 
-Funcionalidades:
-    - Configuração dos parâmetros do GA via widgets
-    - Execução do GA com spinner de progresso
-    - Gráficos co-evolutivos RF vs KNN na mesma linha do tempo
-    - Tabela unificada de estatísticas por geração
-    - Card de destaque com o melhor indivíduo encontrado
-    - Download dos resultados (JSON + CSV)
+Consome a API REST do backend (deploy separado).
 """
 
-import json
 import io
-import logging
+import json
+import os
 
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+from dotenv import load_dotenv
 
-logger = logging.getLogger(__name__)
+from src.api_client import ApiError, TuningClient
 
-# ---------------------------------------------------------------------------
-# Configuração da página
-# ---------------------------------------------------------------------------
+load_dotenv()
 
 st.set_page_config(
     page_title="🧬 Tuning Genético | SISVAN",
     page_icon="🧬",
     layout="wide",
 )
-
-# ---------------------------------------------------------------------------
-# CSS customizado
-# ---------------------------------------------------------------------------
 
 st.markdown("""
 <style>
@@ -67,9 +56,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------------------------------------------------------------------
-# Título
-# ---------------------------------------------------------------------------
+client = TuningClient()
 
 st.title("🧬 Tuning Genético Co-Evolutivo")
 st.markdown(
@@ -78,52 +65,9 @@ st.markdown(
 )
 st.divider()
 
-# ---------------------------------------------------------------------------
-# Sidebar — Configuração dos parâmetros
-# ---------------------------------------------------------------------------
-
-with st.sidebar:
-    st.header("⚙️ Parâmetros do GA")
-
-    st.subheader("Dados")
-    data_path = st.text_input(
-        "Caminho do CSV processado",
-        value="data/processed/estado_nutricional_clean.csv",
-    )
-    target_col = st.text_input("Coluna target", value="TARGET")
-
-    st.subheader("Populações")
-    pop_size = st.slider("Pop. size por tipo", 4, 100, 20, step=2,
-                         help="Número de indivíduos RF e KNN (total = 2×)")
-    max_generations = st.slider("Máx. de gerações", 2, 50, 10)
-    patience = st.slider("Patience (convergência)", 1, 20, 5,
-                         help="Gerações sem melhoria antes de parar")
-    k_folds = st.selectbox("K-Folds CV", [3, 5, 10], index=1)
-
-    st.subheader("Operadores")
-    aggressiveness = st.select_slider(
-        "Agressividade da mutação",
-        options=["low", "medium", "high"],
-        value="medium",
-    )
-    elitism = st.toggle("Elitismo", value=True,
-                        help="Preserva o melhor indivíduo a cada geração")
-    cxpb = st.slider("P(crossover)", 0.1, 1.0, 0.7, step=0.05)
-    mutpb = st.slider("P(mutação)", 0.05, 1.0, 0.3, step=0.05)
-    indpb = st.slider("P(swap/gene) — cxUniform", 0.1, 1.0, 0.5, step=0.1)
-    random_seed = st.number_input("Random seed", value=42, min_value=0)
-
-    st.divider()
-    run_button = st.button("🚀 Iniciar Tuning", use_container_width=True, type="primary")
-
-# ---------------------------------------------------------------------------
-# Helpers de visualização
-# ---------------------------------------------------------------------------
 
 def _make_evolution_chart(df: pd.DataFrame) -> go.Figure:
-    """Gráfico co-evolutivo: F1 de RF e KNN por geração + melhor global."""
     fig = go.Figure()
-
     fig.add_trace(go.Scatter(
         x=df["generation"], y=df["rf_best_f1"],
         name="RF — Best F1", mode="lines+markers",
@@ -154,8 +98,6 @@ def _make_evolution_chart(df: pd.DataFrame) -> go.Figure:
         line=dict(color="#FFD600", width=2.5),
         marker=dict(size=9, symbol="star"),
     ))
-
-    # Marcação de parada antecipada
     early = df[df["stopped_early"]]
     if not early.empty:
         fig.add_vline(
@@ -163,7 +105,6 @@ def _make_evolution_chart(df: pd.DataFrame) -> go.Figure:
             line_dash="dash", line_color="#f57f17",
             annotation_text="Convergência", annotation_position="top right",
         )
-
     fig.update_layout(
         title="Evolução do F1 por Geração",
         xaxis_title="Geração",
@@ -179,7 +120,6 @@ def _make_evolution_chart(df: pd.DataFrame) -> go.Figure:
 
 
 def _make_population_chart(df: pd.DataFrame) -> go.Figure:
-    """Gráfico de proporção de sobreviventes RF vs KNN por geração."""
     fig = go.Figure()
     fig.add_trace(go.Bar(
         x=df["generation"], y=df["rf_count"],
@@ -204,21 +144,17 @@ def _make_population_chart(df: pd.DataFrame) -> go.Figure:
 
 
 def _best_card(result: dict) -> None:
-    """Exibe card do melhor indivíduo encontrado."""
     best = result.get("best_individual")
     if not best:
         return
-
     tipo = best.get("type", "?")
     hp = best.get("hyperparams", {})
     f1 = best.get("fitness_f1", 0.0) or 0.0
     acc = best.get("fitness_acc", 0.0) or 0.0
     score = f1 * 0.6 + acc * 0.4
-
     badge = f'<span class="badge-rf">RF</span>' if tipo == "RF" else f'<span class="badge-knn">KNN</span>'
     stopped = result.get("reason", "")
     early_badge = '<span class="stopped-early">⚡ Convergência</span>' if stopped == "convergence" else ""
-
     st.markdown(f"""
     <div class="winner-card">
         <h3>🏆 Melhor Indivíduo Global {badge} {early_badge}</h3>
@@ -235,65 +171,84 @@ def _best_card(result: dict) -> None:
     """, unsafe_allow_html=True)
 
 
-# ---------------------------------------------------------------------------
-# Execução do GA
-# ---------------------------------------------------------------------------
+try:
+    available_datasets = client.list_datasets()
+except ApiError as exc:
+    st.error(f"❌ Erro ao listar datasets: {exc}")
+    available_datasets = []
+
+with st.sidebar:
+    st.header("⚙️ Parâmetros do GA")
+    st.subheader("Dados")
+
+    if available_datasets:
+        dataset = st.selectbox("Dataset processado", available_datasets)
+    else:
+        dataset = st.text_input(
+            "Dataset (nome do CSV)",
+            value="estado_nutricional_clean.csv",
+        )
+        st.caption("API indisponível ou sem datasets — informe o nome manualmente.")
+
+    target_col = st.text_input("Coluna target", value="TARGET")
+
+    st.subheader("Populações")
+    pop_size = st.slider("Pop. size por tipo", 4, 100, 20, step=2)
+    max_generations = st.slider("Máx. de gerações", 2, 50, 10)
+    patience = st.slider("Patience (convergência)", 1, 20, 5)
+    k_folds = st.selectbox("K-Folds CV", [3, 5, 10], index=1)
+
+    st.subheader("Operadores")
+    aggressiveness = st.select_slider(
+        "Agressividade da mutação",
+        options=["low", "medium", "high"],
+        value="medium",
+    )
+    elitism = st.toggle("Elitismo", value=True)
+    cxpb = st.slider("P(crossover)", 0.1, 1.0, 0.7, step=0.05)
+    mutpb = st.slider("P(mutação)", 0.05, 1.0, 0.3, step=0.05)
+    indpb = st.slider("P(swap/gene) — cxUniform", 0.1, 1.0, 0.5, step=0.1)
+    random_seed = st.number_input("Random seed", value=42, min_value=0)
+    async_mode = st.toggle("Execução assíncrona", value=False,
+                           help="Recomendado para tuning longo (>30s)")
+
+    st.divider()
+    run_button = st.button("🚀 Iniciar Tuning", use_container_width=True, type="primary")
+
+    if st.button("📂 Carregar último log", use_container_width=True):
+        try:
+            logs = client.get_latest_logs()
+            st.session_state["ga_results"] = logs["history"]
+            st.success("Log carregado da API!")
+        except ApiError as exc:
+            st.error(str(exc))
 
 if run_button:
-    import pandas as pd_local
-    from pathlib import Path
-
-    # Valida dados
-    if not Path(data_path).exists():
-        st.error(f"❌ Arquivo não encontrado: `{data_path}`")
-        st.stop()
-
-    try:
-        df_raw = pd_local.read_csv(data_path)
-        if target_col not in df_raw.columns:
-            st.error(f"❌ Coluna `{target_col}` não encontrada. Colunas disponíveis: {list(df_raw.columns)}")
-            st.stop()
-
-        X = df_raw.drop(columns=[target_col]).values
-        y = df_raw[target_col].values
-    except Exception as e:
-        st.error(f"❌ Erro ao carregar dados: {e}")
-        st.stop()
-
-    # Importa GA após validação
-    from src.models.genetic_algorithm import GeneticAlgorithm
-    from src.models.ga_evaluator import fitness_score as _fitness_score
-    from src.models.ga_persistence import save_ga_results
-
     st.info(
-        f"🚀 Iniciando GA | Pop: {pop_size}/tipo ({pop_size*2} total) | "
-        f"Máx. {max_generations} gerações | Patience: {patience} | "
-        f"Mutação: {aggressiveness} | Elitismo: {'✅' if elitism else '❌'}"
+        f"🚀 Iniciando GA via API | Pop: {pop_size}/tipo ({pop_size * 2} total) | "
+        f"Máx. {max_generations} gerações | Patience: {patience}"
     )
-
     with st.spinner("⏳ Executando Algoritmo Genético Co-Evolutivo..."):
-        ga = GeneticAlgorithm(
-            X=X, y=y,
-            pop_size=pop_size,
-            max_generations=max_generations,
-            patience=patience,
-            k_folds=k_folds,
-            mutation_aggressiveness=aggressiveness,
-            elitism=elitism,
-            indpb=indpb,
-            cxpb=cxpb,
-            mutpb=mutpb,
-            random_seed=random_seed,
-        )
-        results = ga.run()
-
-    # Salva no session_state para reutilização
-    st.session_state["ga_results"] = results
-    st.success("✅ Tuning concluído!")
-
-# ---------------------------------------------------------------------------
-# Exibição dos resultados (persiste via session_state)
-# ---------------------------------------------------------------------------
+        try:
+            results = client.run_tuning(
+                dataset=dataset,
+                target_col=target_col,
+                pop_size=pop_size,
+                max_generations=max_generations,
+                patience=patience,
+                k_folds=k_folds,
+                aggressiveness=aggressiveness,
+                elitism=elitism,
+                cxpb=cxpb,
+                mutpb=mutpb,
+                indpb=indpb,
+                random_seed=random_seed,
+                async_mode=async_mode,
+            )
+            st.session_state["ga_results"] = results
+            st.success("✅ Tuning concluído!")
+        except ApiError as exc:
+            st.error(f"❌ Erro na API: {exc}")
 
 if "ga_results" in st.session_state:
     results = st.session_state["ga_results"]
@@ -319,8 +274,6 @@ if "ga_results" in st.session_state:
     } for s in stats])
 
     st.divider()
-
-    # ---- Métricas resumo ----
     best_ind = results.get("best_individual")
     best_f1 = best_ind.get("fitness_f1", 0.0) if best_ind else 0.0
     best_acc = best_ind.get("fitness_acc", 0.0) if best_ind else 0.0
@@ -334,18 +287,13 @@ if "ga_results" in st.session_state:
     col4.metric("🔬 Tipo Vencedor", best_type)
 
     st.divider()
-
-    # ---- Card do melhor ----
     _best_card(results)
-
     st.divider()
 
-    # ---- Gráficos co-evolutivos ----
     st.subheader("📈 Evolução Co-Evolutiva")
     st.plotly_chart(_make_evolution_chart(df_stats), use_container_width=True)
     st.plotly_chart(_make_population_chart(df_stats), use_container_width=True)
 
-    # ---- Tabela de estatísticas ----
     st.subheader("📊 Estatísticas por Geração")
     st.dataframe(
         df_stats.style.format({
@@ -357,12 +305,9 @@ if "ga_results" in st.session_state:
         hide_index=True,
     )
 
-    # ---- Downloads ----
     st.divider()
     st.subheader("⬇️ Download dos Resultados")
-
     col_dl1, col_dl2 = st.columns(2)
-
     with col_dl1:
         json_payload = {
             "params": results.get("params", {}),
@@ -378,7 +323,6 @@ if "ga_results" in st.session_state:
             mime="application/json",
             use_container_width=True,
         )
-
     with col_dl2:
         csv_buffer = io.StringIO()
         df_stats.to_csv(csv_buffer, index=False)
@@ -389,9 +333,7 @@ if "ga_results" in st.session_state:
             mime="text/csv",
             use_container_width=True,
         )
-
 else:
-    # Estado inicial — nenhum run ainda
     st.info(
         "👈 Configure os parâmetros na barra lateral e clique em **🚀 Iniciar Tuning** para começar."
     )

@@ -43,12 +43,9 @@ project-root/
 │   │   ├── genetic_algorithm.py # Orquestrador GeneticAlgorithm (loop co-evolutivo)
 │   │   └── ga_persistence.py   # Save/load de resultados GA e modelos
 │   │
-│   ├── app/                # Camada de apresentação e Agente LLM
-│   │   ├── __init__.py
-│   │   ├── llm.py          # Agente Inteligente ReAct (NutritionalHealthAgent)
-│   │   └── pages/          # Telas adicionais e dashboards do Streamlit
-│   │       ├── __init__.py
-│   │       └── tuning_monitor.py # Dashboard co-evolutivo GA (🧬 Tuning Genético)
+│   ├── api/                # FastAPI — rotas REST (tuning, llm, health)
+│   ├── agents/             # Agente LLM ReAct (NutritionalHealthAgent)
+│   ├── services/           # Lógica de negócio da API (tuning_service)
 │   │
 │   └── utils/              # Funções utilitárias auxiliares
 │       ├── __init__.py
@@ -76,7 +73,7 @@ project-root/
 
 ## 🤖 Arquitetura do Agente de Saúde Nutricional
 
-O agente de apoio à decisão clínica e estatística está implementado na classe [`NutritionalHealthAgent`](file:///c:/code/fiap-pos-ia/fase-2/fiap-pos-ia-para-devs-fase2-tech-challenge/src/app/llm.py) localizada em `src/app/llm.py`. 
+O agente de apoio à decisão clínica e estatística está implementado na classe `NutritionalHealthAgent` em `src/agents/nutritional_agent.py`. 
 
 ### 1. Padrão de Projeto ReAct (Reasoning and Acting)
 O agente utiliza o padrão **ReAct**, o qual alterna ciclos de raciocínio (Thought) e ações (Action) em cima de ferramentas para resolver perguntas complexas de dados de forma iterativa. Ele executa o seguinte fluxo:
@@ -198,10 +195,11 @@ graph TD
     A[data/raw/dados.csv] -->|run_preprocessing.py| B[data/processed/dados_clean.csv]
     B -->|run_tuning.py\nGA Co-Evolutivo| C[models/artifacts/best_model.joblib]
     B -->|logs| D2[models/logs/ga_history.json\nga_generation_stats.csv]
-    C -->|Carregamento| D[Streamlit App / main.py]
-    B -->|Carregamento de Dados| D
-    D -->|Instancia| E[Agente de Saúde ReAct / llm.py]
-    D -->|Página 🧬| F[tuning_monitor.py\nDashboard GA]
+    C -->|Carregamento| D[Frontend Streamlit\n../frontend/]
+    B -->|API REST| D
+    D -->|HTTP| API[Backend FastAPI\nsrc/api/]
+    API -->|Instancia| E[Agente de Saúde ReAct]
+    API -->|Executa| F[GA Co-Evolutivo]
     E -->|Usa Chave Gemini| G[Google Gemini API]
 ```
 
@@ -212,6 +210,6 @@ graph TD
    - `models/logs/ga_history.json` — histórico completo de todas as gerações
    - `models/logs/ga_generation_stats.csv` — tabela por geração com stats de RF, KNN e global
 
-3. **Interface Visual e Agente**: O aplicativo Streamlit unificará o monitoramento das fases com:
-   - Painel **🧬 Tuning Genético** (`tuning_monitor.py`): execução interativa do GA com gráficos co-evolutivos em tempo real
-   - Painel de chat com o `NutritionalHealthAgent` (ReAct + Gemini) para interpretação clínica das predições
+3. **Interface Visual e Agente**: O front-end Streamlit (`../frontend/`) consome a API REST do backend:
+   - Painel **🧬 Tuning Genético** (`frontend/app/pages/tuning_monitor.py`): dashboard via `POST /tuning/run`
+   - Painel **💬 Agente Nutricional** (`frontend/app/pages/chat_agent.py`): chat via `/llm/session` e `/llm/chat`
