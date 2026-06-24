@@ -25,6 +25,7 @@ from src.data.ingest import read_csv_data, validate_dataframe
 from src.data.preprocessing import run_preprocessing
 from src.data.features import run_feature_engineering
 from src.utils.persistence import save_dataframe, save_dict
+import json
 
 # Configurar logging
 logging.basicConfig(
@@ -32,6 +33,23 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+
+def encoders_to_mappings_dict(encoders: dict) -> dict:
+    """
+    Converte encoders do sklearn para dicionário de mapeamentos JSON-serializável.
+    
+    Args:
+        encoders: Dicionário de LabelEncoders do sklearn
+        
+    Returns:
+        Dicionário com mapeamentos {coluna: {valor_codificado: valor_original}}
+    """
+    mappings = {}
+    for col, encoder in encoders.items():
+        # Cria mapeamento inverso: valor codificado -> valor original
+        mappings[col] = {str(i): str(cls) for i, cls in enumerate(encoder.classes_)}
+    return mappings
 
 
 def main():
@@ -52,7 +70,12 @@ def main():
     parser.add_argument(
         "--output-encoders",
         default="models/artifacts/encoders.joblib",
-        help="Caminho para salvar os encoders",
+        help="Caminho para salvar os encoders (joblib)",
+    )
+    parser.add_argument(
+        "--output-mappings",
+        default="models/artifacts/mappings.json",
+        help="Caminho para salvar os mapeamentos em JSON (para o agente)",
     )
     parser.add_argument(
         "--format-output",
@@ -129,6 +152,14 @@ def main():
         )
         logger.info(f"✓ Encoders salvos em: {args.output_encoders}")
 
+        # Converter encoders para mapeamentos JSON e salvar
+        mappings_dict = encoders_to_mappings_dict(encoders)
+        mappings_path = Path(args.output_mappings)
+        mappings_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(mappings_path, 'w', encoding='utf-8') as f:
+            json.dump(mappings_dict, f, ensure_ascii=False, indent=2)
+        logger.info(f"✓ Mapeamentos salvos em: {args.output_mappings}")
+
         # Relatório final
         logger.info("\n" + "=" * 80)
         logger.info("PIPELINE CONCLUÍDO COM SUCESSO")
@@ -139,6 +170,7 @@ def main():
         logger.info(f"  - Colunas: {df_features.columns.tolist()}")
         logger.info(f"  - Arquivo: {output_path}")
         logger.info(f"  - Encoders: {args.output_encoders}")
+        logger.info(f"  - Mapeamentos: {args.output_mappings}")
 
         return 0
 
