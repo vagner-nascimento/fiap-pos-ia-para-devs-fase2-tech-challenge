@@ -64,17 +64,17 @@ def main():
     )
     parser.add_argument(
         "--output",
-        default="data/processed/estado_nutricional_clean.csv",
+        default="backend/data/processed/estado_nutricional_clean.csv",
         help="Caminho para salvar o dataset processado",
     )
     parser.add_argument(
         "--output-encoders",
-        default="models/artifacts/encoders.joblib",
+        default="backend/models/artifacts/encoders.joblib",
         help="Caminho para salvar os encoders (joblib)",
     )
     parser.add_argument(
         "--output-mappings",
-        default="models/artifacts/mappings.json",
+        default="backend/models/artifacts/mappings.json",
         help="Caminho para salvar os mapeamentos em JSON (para o agente)",
     )
     parser.add_argument(

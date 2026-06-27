@@ -1,0 +1,16 @@
+{
+  "DS_FASE_VIDA": {
+    "0": "ADOLESCENTE",
+    "1": "ADULTO",
+    "2": "ENTRE 2 ANOS A 5 ANOS",
+    "3": "ENTRE 5 ANOS A 7 ANOS",
+    "4": "ENTRE 6 MESES A 2 ANOS",
+    "5": "ENTRE 7 ANOS A 10 ANOS",
+    "6": "IDOSO",
+    "7": "MENOR DE 6 MESES"
+  },
+  "SG_SEXO": {
+    "0": "F",
+    "1": "M"
+  }
+}
