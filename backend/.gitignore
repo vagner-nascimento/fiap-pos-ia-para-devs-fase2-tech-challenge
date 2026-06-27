@@ -219,6 +219,5 @@ __marimo__/
 
 
 # Pastas de arquivos de dados (somente na raiz do projeto)
-/data/
-/data/raw/
+/data/raw/estado_nutricional_sao_paulo.csv
 /data/processed/
