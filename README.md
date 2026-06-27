@@ -158,6 +158,23 @@ docker-compose restart backend
 docker-compose restart frontend
 ```
 
+### Script de Reinicialização
+
+Para reiniciar todos os containers (parar, reconstruir e iniciar em background), use o script `restar_containers.sh`:
+
+```bash
+# No Linux/Mac (torne o script executável primeiro)
+chmod +x restar_containers.sh
+./restar_containers.sh
+
+# No Windows (via Git Bash ou WSL)
+bash restar_containers.sh
+```
+
+Este script executa:
+1. `docker compose down` - Para todos os containers
+2. `docker compose up --build -d` - Reconstrói as imagens e inicia em background
+
 ### Execução Local (Sem Docker)
 
 Para desenvolvimento local, consulte as instruções detalhadas em:
