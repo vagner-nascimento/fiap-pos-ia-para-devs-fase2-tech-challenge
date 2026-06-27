@@ -9,6 +9,7 @@ Responsável por:
 
 import pandas as pd
 import logging
+import signal
 from pathlib import Path
 from typing import List, Optional
 
@@ -22,6 +23,10 @@ def read_csv_data(
 ) -> pd.DataFrame:
     """
     Lê dados de um arquivo CSV com tratamento de erros.
+
+    Usa `memory_map=False` e tenta o engine C primeiro. Se ocorrer SIGSEGV
+    (exit 139, comum em arquivos grandes em volumes Docker/Podman), faz
+    fallback automático para `engine='python'`.
 
     Args:
         file_path (str): Caminho do arquivo CSV.
@@ -42,6 +47,13 @@ def read_csv_data(
         raise FileNotFoundError(f"Arquivo não encontrado: {file_path}")
 
     logger.info(f"Lendo arquivo CSV: {file_path}")
+
+    # O parser C do pandas (padrão) causa SIGSEGV (exit code 139) ao ler
+    # arquivos CSV grandes (>550k linhas) em volumes Docker/Podman.
+    # O SIGSEGV mata o processo antes de qualquer exceção Python ser lançada,
+    # portanto o try/except não resolve — a única solução é forçar engine='python'.
+    kwargs.setdefault("memory_map", False)
+    kwargs.setdefault("engine", "python")
 
     try:
         df = pd.read_csv(file_path, encoding=encoding, **kwargs)
