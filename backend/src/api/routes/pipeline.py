@@ -119,7 +119,7 @@ def _run_tuning_job(job_id: str, params: TuningRequest) -> None:
             "--patience", str(params.patience),
             "--k-folds", str(params.k_folds),
             "--aggressiveness", params.aggressiveness,
-            "--elitism", str(params.elitism).lower(),
+            "--elitism" if params.elitism else "--no-elitism",
             "--cxpb", str(params.crossover_probability),
             "--mutpb", str(params.mutation_probability),
             "--indpb", str(params.individual_mutation_probability),
