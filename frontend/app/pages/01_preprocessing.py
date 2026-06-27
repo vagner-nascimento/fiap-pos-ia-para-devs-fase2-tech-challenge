@@ -30,12 +30,20 @@ st.header("📁 Pré-requisito")
 
 st.warning(
     """
-    **IMPORTANTE:** Antes de iniciar o preprocessing, você deve colocar o arquivo CSV bruto 
-    no diretório do backend:
+    **IMPORTANTE:** Antes de iniciar o preprocessing, você deve colocar o arquivo bruto 
+    no diretório do backend (suporta .csv ou .rar):
     
     ```
     backend/data/raw/estado_nutricional_sao_paulo.csv
     ```
+    
+    ou
+    
+    ```
+    backend/data/raw/estado_nutricional_sao_paulo.rar
+    ```
+    
+    Se fornecido um arquivo .rar, ele será automaticamente extraído antes do processamento.
     """
 )
 

@@ -18,9 +18,18 @@ python scripts/run_preprocessing.py \
     --format-output csv
 ```
 
+Ou usando arquivo .rar (extração automática):
+```bash
+python scripts/run_preprocessing.py \
+    --input data/raw/estado_nutricional_sao_paulo.rar \
+    --output data/processed/estado_nutricional_clean.csv \
+    --output-encoders models/artifacts/encoders.joblib \
+    --format-output csv
+```
+
 **Argumentos:**
 
-- `--input` (obrigatório): Caminho do arquivo CSV de entrada
+- `--input` (obrigatório): Caminho do arquivo de entrada (suporta .csv ou .rar)
 - `--output`: Caminho para salvar o dataset processado (default: `data/processed/estado_nutricional_clean.csv`)
 - `--output-encoders`: Caminho para salvar os encoders (default: `models/artifacts/encoders.joblib`)
 - `--format-output`: Formato do arquivo de saída: `csv` ou `parquet` (default: `csv`)
@@ -38,6 +47,14 @@ python scripts/run_preprocessing.py \
 ```bash
 python scripts/run_preprocessing.py \
     --input data/raw/estado_nutricional_sao_paulo.csv \
+    --output data/processed/estado_nutricional_clean.parquet \
+    --format-output parquet
+```
+
+Ou usando arquivo .rar:
+```bash
+python scripts/run_preprocessing.py \
+    --input data/raw/estado_nutricional_sao_paulo.rar \
     --output data/processed/estado_nutricional_clean.parquet \
     --format-output parquet
 ```

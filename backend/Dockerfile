@@ -2,6 +2,9 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
+# Install p7zip-full for .rar file extraction (includes 7z)
+RUN apt-get update && apt-get install -y p7zip-full && rm -rf /var/lib/apt/lists/*
+
 RUN pip install --no-cache-dir uv
 
 COPY pyproject.toml uv.lock* ./

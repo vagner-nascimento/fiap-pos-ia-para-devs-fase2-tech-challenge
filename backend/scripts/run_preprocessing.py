@@ -21,7 +21,7 @@ from pathlib import Path
 # Adiciona o diretório raiz ao path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.data.ingest import read_csv_data, validate_dataframe
+from src.data.ingest import read_csv_data, validate_dataframe, extract_rar_file
 from src.data.preprocessing import run_preprocessing
 from src.data.features import run_feature_engineering
 from src.utils.persistence import save_dataframe, save_dict
@@ -102,6 +102,15 @@ def main():
         logger.info("=" * 80)
         logger.info("INICIANDO PIPELINE DE PRÉ-PROCESSAMENTO")
         logger.info("=" * 80)
+
+        # 0. Extração de arquivo .rar se necessário
+        input_path = Path(args.input)
+        if input_path.suffix == '.rar':
+            csv_path = input_path.with_suffix('.csv')
+            logger.info(f"\n[0/4] Verificando necessidade de extração: {args.input}")
+            extract_rar_file(args.input, str(csv_path))
+            # Atualizar input path para o CSV extraído
+            args.input = str(csv_path)
 
         # 1. Ingestão de dados
         logger.info(f"\n[1/4] Ingestão de dados: {args.input}")

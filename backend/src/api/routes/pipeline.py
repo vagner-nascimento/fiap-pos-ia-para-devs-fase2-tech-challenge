@@ -30,6 +30,7 @@ from src.api.pipeline_store import (
     set_preprocessing_completed,
     set_tuning_completed,
 )
+from src.data.ingest import extract_rar_file
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,7 @@ class TuningRequest(BaseModel):
 
 
 # Fixed paths
+RAR_PATH = "data/raw/estado_nutricional_sao_paulo.rar"
 RAW_CSV_PATH = "data/raw/estado_nutricional_sao_paulo.csv"
 PROCESSED_CSV_PATH = "data/processed/estado_nutricional_clean.csv"
 MAPPINGS_PATH = "models/artifacts/mappings.json"
@@ -64,7 +66,18 @@ def _run_preprocessing_job(job_id: str) -> None:
     try:
         # Reset pipeline state when preprocessing starts
         reset_pipeline()
-        
+
+        # Extract .rar file if CSV doesn't exist
+        csv_path = Path(RAW_CSV_PATH)
+        rar_path = Path(RAR_PATH)
+        if not csv_path.exists() and rar_path.exists():
+            logger.info(f"CSV não encontrado, extraindo de {RAR_PATH}")
+            extract_rar_file(RAR_PATH, RAW_CSV_PATH)
+        elif not csv_path.exists() and not rar_path.exists():
+            raise FileNotFoundError(
+                f"Arquivo bruto não encontrado: nem {RAW_CSV_PATH} nem {RAR_PATH} existem"
+            )
+
         cmd = [
             sys.executable,
             "scripts/run_preprocessing.py",
@@ -183,17 +196,20 @@ def _run_predictions_job(job_id: str) -> None:
 def run_preprocessing(background_tasks: BackgroundTasks):
     """
     Executa o preprocessing dos dados brutos.
-    
-    Requer que o arquivo data/raw/estado_nutricional_sao_paulo.csv exista.
+
+    Requer que o arquivo data/raw/estado_nutricional_sao_paulo.csv ou
+    data/raw/estado_nutricional_sao_paulo.rar exista.
+    Se fornecido .rar, o arquivo será extraído automaticamente.
     Retorna um job_id para consultar o status.
     """
-    # Check if raw file exists
-    raw_path = Path(RAW_CSV_PATH)
-    if not raw_path.exists():
+    # Check if raw file exists (CSV or RAR)
+    csv_path = Path(RAW_CSV_PATH)
+    rar_path = Path(RAR_PATH)
+    if not csv_path.exists() and not rar_path.exists():
         raise HTTPException(
             status_code=404,
-            detail=f"Arquivo bruto não encontrado: {RAW_CSV_PATH}. "
-                   f"Por favor, coloque o arquivo CSV em data/raw/ antes de executar o preprocessing."
+            detail=f"Arquivo bruto não encontrado: nem {RAW_CSV_PATH} nem {RAR_PATH} existem. "
+                   f"Por favor, coloque o arquivo CSV ou .rar em data/raw/ antes de executar o preprocessing."
         )
     
     job_id = create_job()

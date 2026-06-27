@@ -16,6 +16,9 @@ Para rodar a aplicação, você precisará de:
 1. **Python >= 3.13** (conforme especificado no [pyproject.toml](file:///c:/code/fiap-pos-ia/fase-2/fiap-pos-ia-para-devs-fase2-tech-challenge/pyproject.toml)).
 2. **Gerenciador de Dependências**: Recomendamos o **`uv`** (pois o projeto já inclui um arquivo de trava `uv.lock`), mas você também pode utilizar o `pip` clássico com um ambiente virtual (`venv`).
 3. **Chave de API do Google AI Studio** (Gemini) para alimentar o Agente de Saúde Nutricional.
+4. **Ferramenta unrar** para extração de arquivos .rar (necessária para o patoolib funcionar):
+   - **Windows**: Baixe e instale o [WinRAR](https://www.win-rar.com/) ou adicione o `unrar` ao PATH
+   - **Linux/macOS**: `sudo apt-get install unrar` (Debian/Ubuntu) ou `brew install unrar` (macOS)
 
 ---
 
@@ -119,10 +122,18 @@ Se preferir usar o ambiente virtual nativo do Python:
 ### 1. Pré-processamento de Dados (`scripts/run_preprocessing.py`)
 Antes de utilizar o modelo de Machine Learning ou o painel de análise, é necessário pré-processar os dados brutos obtidos do SISVAN.
 
+O script suporta arquivos **.csv** ou **.rar**. Se fornecido um arquivo .rar, ele será automaticamente extraído antes do processamento.
+
 Exemplo de execução básica:
 ```bash
 python scripts/run_preprocessing.py --input data/raw/estado_nutricional_sao_paulo.csv
 ```
+
+Ou usando arquivo .rar (extração automática):
+```bash
+python scripts/run_preprocessing.py --input data/raw/estado_nutricional_sao_paulo.rar
+```
+
 > [!NOTE]
 > Caso os dados de entrada estejam em outra pasta ou com outro nome, forneça o caminho correspondente no parâmetro `--input`.
 
