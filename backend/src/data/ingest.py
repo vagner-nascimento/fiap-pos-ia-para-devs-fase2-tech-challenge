@@ -5,6 +5,7 @@ Responsável por:
 - Leitura de arquivos CSV
 - Validação da estrutura de dados
 - Detecção de encoding
+- Extração de arquivos .rar
 """
 
 import pandas as pd
@@ -12,8 +13,45 @@ import logging
 import signal
 from pathlib import Path
 from typing import List, Optional
+import patoolib
 
 logger = logging.getLogger(__name__)
+
+
+def extract_rar_file(rar_path: str, csv_path: str) -> None:
+    """
+    Extrai arquivo CSV de um arquivo .rar se o CSV não existir.
+
+    Args:
+        rar_path (str): Caminho do arquivo .rar.
+        csv_path (str): Caminho onde o CSV deve ser extraído.
+
+    Raises:
+        FileNotFoundError: Se arquivo .rar não existir.
+        Exception: Se erro na extração.
+    """
+    rar_file = Path(rar_path)
+    csv_file = Path(csv_path)
+
+    # Se CSV já existe, não precisa extrair
+    if csv_file.exists():
+        logger.info(f"CSV já existe: {csv_path}")
+        return
+
+    # Verificar se arquivo .rar existe
+    if not rar_file.exists():
+        raise FileNotFoundError(f"Arquivo .rar não encontrado: {rar_path}")
+
+    logger.info(f"Extraindo arquivo .rar: {rar_path}")
+    logger.info(f"Destino: {csv_file.parent}")
+
+    try:
+        # Extrair arquivo .rar usando patoolib
+        patoolib.extract_archive(str(rar_file), outdir=str(csv_file.parent))
+        logger.info(f"Extração concluída com sucesso")
+    except Exception as e:
+        logger.error(f"Erro ao extrair arquivo .rar: {e}")
+        raise
 
 
 def read_csv_data(

@@ -44,6 +44,9 @@ Para mais detalhes sobre a arquitetura, consulte:
 
 - **Docker** e **Docker Compose** instalados
 - **Chave de API do Google AI Studio** (Gemini)
+- **Ferramenta unrar** para extração de arquivos .rar (necessária para o patoolib funcionar):
+  - **Windows**: Baixe e instale o [WinRAR](https://www.win-rar.com/) ou adicione o `unrar` ao PATH
+  - **Linux/macOS**: `sudo apt-get install unrar` (Debian/Ubuntu) ou `brew install unrar` (macOS)
 
 ### Passo 1: Configurar Variáveis de Ambiente
 
