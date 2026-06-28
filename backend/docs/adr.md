@@ -270,3 +270,106 @@ Os resultados do GA precisam ser consumidos por diferentes audiências:
 - `save_best_model()` executa um `fit()` final no dataset completo antes de persistir (o GA avalia via CV, não treina o modelo final)
 - `load_ga_history()` permite recarregar resultados sem re-executar o GA
 - O CSV tem uma linha por geração com todas as métricas — adequado para `pd.read_csv()` direto no Streamlit
+
+---
+
+## ADR-011 — Biblioteca de Extração de Archives: patoolib
+
+**Data**: 2026-06  
+**Status**: Aceito
+
+### Contexto
+O dataset SISVAN é distribuído em formato `.rar`. O backend precisa extrair o arquivo automaticamente antes do pipeline de pré-processamento sem exigir intervenção manual.
+
+### Alternativas Consideradas
+| Biblioteca | Prós | Contras |
+|---|---|---|
+| **`patoolib`** | Suporta múltiplos formatos (rar, zip, 7z, tar, etc.); delega a ferramenta externa disponível no SO; interface unificada | Depende de executável externo instalado no sistema |
+| `rarfile` | Específico para RAR; não precisa de binário externo para leitura | Apenas RAR; requer `unrar` para escrita; menos flexível |
+| `zipfile` (stdlib) | Sem dependências externas | Não suporta `.rar` |
+| `py7zr` | Suporta 7z nativamente em Python | Não suporta `.rar` nativamente |
+
+### Decisão
+**`patoolib>=2.0.0`** — pela interface unificada que abstrai o formato e delega automaticamente para o extrator disponível no sistema (`unrar`, `7z`, `unar`, etc.). Isso permite que o mesmo código funcione em diferentes ambientes sem alteração.
+
+### Consequências
+- Dependência adicionada: `patool>=2.0.0,<3.0.0`
+- O container Docker precisa ter ao menos um extrator compatível instalado via `apt-get`
+- A função `extract_rar_file()` em `src/data/ingest.py` usa `patoolib.extract_archive()` como ponto de entrada único
+
+---
+
+## ADR-012 — Pacote de Extração RAR no Docker: `unrar-free` vs. `unrar`
+
+**Data**: 2026-06  
+**Status**: Aceito
+
+### Contexto
+A imagem base `python:3.13-slim` usa **Debian trixie**. O pacote `unrar` (versão proprietária da RARLab) **não está disponível nos repositórios `main` do Debian trixie** — requer habilitar o repositório `non-free`, o que não é feito por padrão na imagem base.
+
+Sintoma observado:
+```
+could not find an executable program to extract format rar;
+candidates are rar,unrar,7z,7zz,7zzs,unar
+```
+
+### Alternativas Consideradas
+| Opção | Disponibilidade | Complexidade |
+|---|---|---|
+| `unrar` (proprietário) | Requer habilitar `non-free` no apt | Alta — modifica fontes do apt |
+| **`unrar-free`** | Disponível no repositório `main` | Baixa — `apt-get install unrar-free` |
+| `p7zip-rar` | Não disponível em Debian trixie | — |
+| `unar` | Disponível no `main` | Baixa, mas menos testado |
+
+### Decisão
+**`unrar-free`** — disponível nos repositórios padrão do Debian trixie (sem necessidade de habilitar `non-free`), provê o binário `/usr/bin/unrar` reconhecido pelo `patoolib`.
+
+```dockerfile
+RUN apt-get update && apt-get install -y p7zip-full unrar-free && rm -rf /var/lib/apt/lists/*
+```
+
+### Consequências
+- Nenhuma mudança nas fontes do apt — imagem mais simples e segura
+- `unrar-free` suporta RAR 2.x e 3.x; arquivos RAR5 podem ter limitações (o dataset SISVAN usa RAR3)
+- Documentação atualizada: instrução Linux passa de `apt-get install unrar` para `apt-get install unrar-free`
+
+---
+
+## ADR-013 — Orquestração do Pipeline via API REST com Jobs Assíncronos
+
+**Data**: 2026-06  
+**Status**: Aceito
+
+### Contexto
+O pipeline completo (pré-processamento → tuning → predições) envolve operações de longa duração (minutos a horas). O frontend Streamlit precisa de uma forma de iniciar cada etapa e monitorar o progresso sem bloquear a interface.
+
+### Alternativas Consideradas
+| Abordagem | Prós | Contras |
+|---|---|---|
+| Execução síncrona (resposta direta) | Simples | HTTP timeout; frontend trava |
+| **FastAPI BackgroundTasks + job store em memória** | Sem dependências externas; simples de implementar | Job perdido em restart do container |
+| Celery + Redis/RabbitMQ | Persistente; escalável; retry automático | Alta complexidade operacional; requer infraestrutura adicional |
+| SSE / WebSockets | Streaming em tempo real | Maior complexidade no frontend |
+
+### Decisão
+**FastAPI `BackgroundTasks` + job store em memória** (`src/api/job_store.py`), exposto pela rota `src/api/routes/pipeline.py`.
+
+Fluxo de cada etapa:
+1. `POST /pipeline/preprocess|tune|predict` → cria job, inicia tarefa em background, retorna `{job_id}`
+2. Frontend faz polling em `GET /pipeline/jobs/{job_id}` até `status == "completed"` ou `"failed"`
+3. Estado do pipeline é rastreado em `src/api/pipeline_store.py` para garantir ordenação das etapas
+
+### Endpoints do Pipeline
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `POST` | `/pipeline/preprocess` | Inicia pré-processamento (extrai .rar se necessário) |
+| `POST` | `/pipeline/tune` | Inicia tuning genético (requer preprocess concluído) |
+| `POST` | `/pipeline/predict` | Gera predições (requer tune concluído) |
+| `GET` | `/pipeline/status` | Estado atual do pipeline |
+| `GET` | `/pipeline/jobs/{id}` | Status e resultado de um job |
+
+### Consequências
+- Jobs são perdidos em restart do container (aceitável para o escopo do Tech Challenge)
+- A ordenação das etapas é validada pelo `pipeline_store` — não é possível executar `tune` antes de `preprocess`
+- Cada etapa delega a execução a um subprocess (`scripts/run_*.py`) para isolamento de memória e compatibilidade com o engine Python do pandas (necessário para evitar SIGSEGV em arquivos grandes)
