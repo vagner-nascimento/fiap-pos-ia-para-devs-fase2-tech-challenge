@@ -18,7 +18,9 @@ Para rodar a aplicação, você precisará de:
 3. **Chave de API do Google AI Studio** (Gemini) para alimentar o Agente de Saúde Nutricional.
 4. **Ferramenta unrar** para extração de arquivos .rar (necessária para o patoolib funcionar):
    - **Windows**: Baixe e instale o [WinRAR](https://www.win-rar.com/) ou adicione o `unrar` ao PATH
-   - **Linux/macOS**: `sudo apt-get install unrar` (Debian/Ubuntu) ou `brew install unrar` (macOS)
+   - **Linux/macOS**: `sudo apt-get install unrar-free` (Debian/Ubuntu) ou `brew install unar` (macOS)
+
+   > **Nota**: Em execução via Docker, a imagem já inclui `unrar-free` instalado automaticamente.
 
 ---
 
@@ -176,9 +178,14 @@ Endpoints principais:
 | Método | Rota | Descrição |
 |--------|------|-----------|
 | `GET` | `/health` | Health check |
+| `POST` | `/pipeline/preprocess` | Inicia pré-processamento (extrai .rar se necessário) |
+| `POST` | `/pipeline/tune` | Inicia tuning genético (requer preprocess concluído) |
+| `POST` | `/pipeline/predict` | Gera predições (requer tune concluído) |
+| `GET` | `/pipeline/status` | Estado atual do pipeline |
+| `GET` | `/pipeline/jobs/{id}` | Status e resultado de um job do pipeline |
 | `GET` | `/tuning/datasets` | Lista CSVs em `data/processed/` |
-| `POST` | `/tuning/run` | Executa GA Co-Evolutivo |
-| `GET` | `/tuning/jobs/{id}` | Status de job assíncrono |
+| `POST` | `/tuning/run` | Executa GA Co-Evolutivo (modo legado) |
+| `GET` | `/tuning/jobs/{id}` | Status de job assíncrono (tuning) |
 | `GET` | `/tuning/logs/latest` | Último histórico GA |
 | `POST` | `/llm/session` | Cria sessão do agente (upload CSV) |
 | `POST` | `/llm/chat` | Pergunta ao agente ReAct |
@@ -229,7 +236,8 @@ uv run pytest tests/integration/ -v
 │   └── utils/              # logger, persistence, validators
 ├── scripts/
 │   ├── run_preprocessing.py
-│   └── run_tuning.py       # CLI do GA Co-Evolutivo
+│   ├── run_tuning.py       # CLI do GA Co-Evolutivo
+│   └── run_predictions.py  # Gera predições usando o modelo treinado
 └── tests/
     ├── unit/               # 44 testes (operadores + evaluator)
     └── integration/        # 16 testes (GA end-to-end)
