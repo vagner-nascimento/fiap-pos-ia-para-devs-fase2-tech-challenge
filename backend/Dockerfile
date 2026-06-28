@@ -2,8 +2,9 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-# Install p7zip-full for .rar file extraction (includes 7z)
-RUN apt-get update && apt-get install -y p7zip-full && rm -rf /var/lib/apt/lists/*
+# Install p7zip-full and unrar-free for .rar file extraction
+# unrar (non-free) is not available in Debian trixie default repos; unrar-free provides the unrar binary
+RUN apt-get update && apt-get install -y p7zip-full unrar-free && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir uv
 
