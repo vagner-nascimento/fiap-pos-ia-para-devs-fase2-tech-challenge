@@ -18,10 +18,10 @@ project-root/
 ├── .gitignore              # Filtros de versionamento do Git
 │
 ├── config/                 # Configurações centralizadas
-│   └── __init__.py         # Módulo de inicialização (arquivos de config serão adicionados)
+│   └── __init__.py         # Módulo de inicialização
 │
 ├── data/                   # Diretório de dados do pipeline
-│   ├── raw/                # Base SISVAN bruta (dados originais)
+│   ├── raw/                # Base SISVAN bruta (dados originais, aceita .csv ou .rar)
 │   ├── processed/          # Base processada e higienizada pós-pipeline
 │   └── .gitkeep
 │
@@ -33,7 +33,10 @@ project-root/
 ├── src/                    # Código-fonte principal da aplicação
 │   ├── __init__.py
 │   ├── data/               # Subsistema de dados e transformação
-│   │   └── __init__.py     # Definição e exportação de funções de transformação
+│   │   ├── __init__.py     # Definição e exportação de funções de transformação
+│   │   ├── ingest.py       # Ingestão de CSV + extração de .rar (patoolib)
+│   │   ├── features.py     # Engenharia de features e codificação de categorias
+│   │   └── preprocessing.py # Pipeline de pré-processamento (remoção, padronização)
 │   │
 │   ├── models/             # Algoritmo genético co-evolutivo e avaliação
 │   │   ├── __init__.py
@@ -43,7 +46,17 @@ project-root/
 │   │   ├── genetic_algorithm.py # Orquestrador GeneticAlgorithm (loop co-evolutivo)
 │   │   └── ga_persistence.py   # Save/load de resultados GA e modelos
 │   │
-│   ├── api/                # FastAPI — rotas REST (tuning, llm, health)
+│   ├── api/                # FastAPI — rotas REST
+│   │   ├── main.py           # Inicialização da aplicação FastAPI
+│   │   ├── job_store.py      # Store em memória para jobs assíncronos
+│   │   ├── pipeline_store.py # Estado e ordenação das etapas do pipeline
+│   │   ├── session_store.py  # Gerência de sessões do agente LLM
+│   │   └── routes/
+│   │       ├── health.py     # GET /health
+│   │       ├── pipeline.py   # POST /pipeline/preprocess|tune|predict, GET /pipeline/status|jobs
+│   │       ├── tuning.py     # POST /tuning/run, GET /tuning/datasets|jobs|logs
+│   │       └── llm.py        # POST /llm/session|chat
+│   │
 │   ├── agents/             # Agente LLM ReAct (NutritionalHealthAgent)
 │   ├── services/           # Lógica de negócio da API (tuning_service)
 │   │
@@ -55,8 +68,9 @@ project-root/
 │
 ├── scripts/                # Scripts utilitários de linha de comando
 │   ├── README.md           # Descrição dos scripts disponíveis
-│   ├── run_preprocessing.py # Script de execução do pré-processamento de dados
-│   └── run_tuning.py       # Script CLI do Algoritmo Genético (GA Co-Evolutivo)
+│   ├── run_preprocessing.py # Pré-processamento dos dados brutos (leitura, limpeza, features)
+│   ├── run_tuning.py       # Script CLI do Algoritmo Genético (GA Co-Evolutivo)
+│   └── run_predictions.py  # Gera predições usando o modelo treinado
 │
 ├── docs/                   # Documentação do projeto
 │   ├── architecture.md     # Este arquivo — visão geral da arquitetura
@@ -192,24 +206,57 @@ O processamento e interação com o sistema se desenvolvem em três etapas macro
 
 ```mermaid
 graph TD
-    A[data/raw/dados.csv] -->|run_preprocessing.py| B[data/processed/dados_clean.csv]
-    B -->|run_tuning.py\nGA Co-Evolutivo| C[models/artifacts/best_model.joblib]
-    B -->|logs| D2[models/logs/ga_history.json\nga_generation_stats.csv]
-    C -->|Carregamento| D[Frontend Streamlit\n../frontend/]
-    B -->|API REST| D
-    D -->|HTTP| API[Backend FastAPI\nsrc/api/]
-    API -->|Instancia| E[Agente de Saúde ReAct]
-    API -->|Executa| F[GA Co-Evolutivo]
-    E -->|Usa Chave Gemini| G[Google Gemini API]
+    A["data/raw/\n.csv ou .rar"] -->|"extração automática\n(patoolib/unrar-free)"| A1["data/raw/.csv"]
+    A1 -->|"POST /pipeline/preprocess\nrun_preprocessing.py"| B["data/processed/\ndados_clean.csv"]
+    B -->|"POST /pipeline/tune\nrun_tuning.py\nGA Co-Evolutivo"| C["models/artifacts/\nbest_model.joblib"]
+    B -->|logs| D2["models/logs/\nga_history.json\nga_generation_stats.csv"]
+    C -->|"POST /pipeline/predict\nrun_predictions.py"| P["models/artifacts/\npredictions.csv"]
+    P -->|"Carregamento"| D["Frontend Streamlit\n../frontend/"]
+    B -->|"API REST"| D
+    D -->|HTTP| API["Backend FastAPI\nsrc/api/"]
+    API -->|Instancia| E["Agente de Saúde ReAct"]
+    API -->|Orquestra| F["Pipeline: preprocess → tune → predict"]
+    E -->|"Usa Chave Gemini"| G["Google Gemini API"]
 ```
 
-1. **Pipeline de Dados**: O script `run_preprocessing.py` ingere o dataset bruto em CSV, remove gestantes (se ativado), realiza imputações necessárias, executa a engenharia de features e codifica colunas qualitativas, gravando os encoders criados.
+1. **Pipeline de Dados**: O endpoint `POST /pipeline/preprocess` (ou o script `run_preprocessing.py`) ingere o dataset bruto em CSV ou `.rar` (extração automática via `patoolib`), remove gestantes (se ativado), realiza imputações necessárias, executa a engenharia de features e codifica colunas qualitativas, gravando os encoders criados.
 
-2. **Treinamento e Tuning**: O script `run_tuning.py` executa o **GA Co-Evolutivo** sobre os dados processados. Mantém duas populações independentes (RF e KNN) que competem pelo fitness global (F1×0.6 + Acc×0.4 via k-Fold CV). Ao final, persiste:
+2. **Treinamento e Tuning**: O endpoint `POST /pipeline/tune` (ou `run_tuning.py`) executa o **GA Co-Evolutivo** sobre os dados processados. Mantém duas populações independentes (RF e KNN) que competem pelo fitness global (F1×0.6 + Acc×0.4 via k-Fold CV). Ao final, persiste:
    - `models/artifacts/best_model.joblib` — pipeline sklearn do modelo vencedor
    - `models/logs/ga_history.json` — histórico completo de todas as gerações
    - `models/logs/ga_generation_stats.csv` — tabela por geração com stats de RF, KNN e global
 
-3. **Interface Visual e Agente**: O front-end Streamlit (`../frontend/`) consome a API REST do backend:
+3. **Predições**: O endpoint `POST /pipeline/predict` (ou `run_predictions.py`) aplica o modelo treinado sobre os dados processados, gerando `models/artifacts/predictions.csv`.
+
+4. **Interface Visual e Agente**: O front-end Streamlit (`../frontend/`) consome a API REST do backend:
    - Painel **🧬 Tuning Genético** (`frontend/app/pages/tuning_monitor.py`): dashboard via `POST /tuning/run`
    - Painel **💬 Agente Nutricional** (`frontend/app/pages/chat_agent.py`): chat via `/llm/session` e `/llm/chat`
+
+---
+
+## 🔄 Pipeline API — Orquestração por Etapas
+
+A rota `src/api/routes/pipeline.py` expõe um pipeline orquestrado em 3 etapas com jobs assíncronos. Cada etapa é acionada por um `POST` e monitorada via polling em `GET /pipeline/jobs/{job_id}`.
+
+### Endpoints
+
+| Método | Rota | Pré-requisito | Descrição |
+|--------|------|----------------|----------|
+| `POST` | `/pipeline/preprocess` | `.csv` ou `.rar` em `data/raw/` | Pré-processamento completo (extrai .rar, limpa, gera features) |
+| `POST` | `/pipeline/tune` | `preprocess` concluído | GA Co-Evolutivo (RF vs KNN) |
+| `POST` | `/pipeline/predict` | `tune` concluído | Gera `predictions.csv` com o melhor modelo |
+| `GET` | `/pipeline/status` | — | Estado atual de cada etapa do pipeline |
+| `GET` | `/pipeline/jobs/{id}` | — | Status e resultado de um job |
+
+### Padrão de Job Assíncrono
+
+```
+POST /pipeline/preprocess
+  → { "job_id": "uuid", "status": "pending" }
+
+GET /pipeline/jobs/{job_id}    # polling até status != "running"
+  → { "status": "completed", "result": { ... } }
+  → { "status": "failed",    "error": "..." }
+```
+
+Em cada etapa, a execução é delegada a um **subprocess Python** (`scripts/run_*.py`) para isolar memória e evitar SIGSEGV do parser C do pandas em volumes Docker com arquivos grandes.

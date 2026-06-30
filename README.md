@@ -46,7 +46,9 @@ Para mais detalhes sobre a arquitetura, consulte:
 - **Chave de API do Google AI Studio** (Gemini)
 - **Ferramenta unrar** para extração de arquivos .rar (necessária para o patoolib funcionar):
   - **Windows**: Baixe e instale o [WinRAR](https://www.win-rar.com/) ou adicione o `unrar` ao PATH
-  - **Linux/macOS**: `sudo apt-get install unrar` (Debian/Ubuntu) ou `brew install unrar` (macOS)
+  - **Linux/macOS**: `sudo apt-get install unrar-free` (Debian/Ubuntu) ou `brew install unar` (macOS)
+
+  > **Nota**: Em execução via Docker, a imagem já inclui `unrar-free` instalado automaticamente.
 
 ### Passo 1: Configurar Variáveis de Ambiente
 
@@ -191,9 +193,14 @@ Para desenvolvimento local, consulte as instruções detalhadas em:
 | Método | Rota | Descrição |
 |--------|------|-----------|
 | `GET` | `/health` | Health check |
+| `POST` | `/pipeline/preprocess` | Inicia pré-processamento (extrai .rar se necessário) |
+| `POST` | `/pipeline/tune` | Inicia tuning genético (requer preprocess concluído) |
+| `POST` | `/pipeline/predict` | Gera predições (requer tune concluído) |
+| `GET` | `/pipeline/status` | Estado atual do pipeline |
+| `GET` | `/pipeline/jobs/{id}` | Status e resultado de um job do pipeline |
 | `GET` | `/tuning/datasets` | Lista CSVs disponíveis |
-| `POST` | `/tuning/run` | Executa GA Co-Evolutivo |
-| `GET` | `/tuning/jobs/{id}` | Status de job assíncrono |
+| `POST` | `/tuning/run` | Executa GA Co-Evolutivo (modo legado) |
+| `GET` | `/tuning/jobs/{id}` | Status de job assíncrono (tuning) |
 | `GET` | `/tuning/logs/latest` | Último histórico GA |
 | `POST` | `/llm/session` | Cria sessão do agente |
 | `POST` | `/llm/chat` | Pergunta ao agente ReAct |
