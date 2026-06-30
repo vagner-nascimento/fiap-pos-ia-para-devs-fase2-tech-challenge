@@ -83,8 +83,15 @@ def load_data(input_path: str, target_col: str):
         logger.error("Coluna target '%s' não encontrada. Colunas: %s", target_col, list(df.columns))
         sys.exit(1)
 
+    # Colunas a excluir: target numérico e a coluna textual original (ESTADO_NUTRI),
+    # pois o modelo espera apenas features numéricas.
+    cols_to_drop = [target_col]
+    if "ESTADO_NUTRI" in df.columns:
+        cols_to_drop.append("ESTADO_NUTRI")
+        logger.info("Removendo coluna textual 'ESTADO_NUTRI' das features de entrada.")
+
     # Separa features e target
-    X = df.drop(columns=[target_col]).values
+    X = df.drop(columns=cols_to_drop).values
     y = df[target_col].values
 
     logger.info("X shape: %s | y shape: %s", X.shape, y.shape)
