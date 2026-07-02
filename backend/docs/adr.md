@@ -373,3 +373,33 @@ Fluxo de cada etapa:
 - Jobs são perdidos em restart do container (aceitável para o escopo do Tech Challenge)
 - A ordenação das etapas é validada pelo `pipeline_store` — não é possível executar `tune` antes de `preprocess`
 - Cada etapa delega a execução a um subprocess (`scripts/run_*.py`) para isolamento de memória e compatibilidade com o engine Python do pandas (necessário para evitar SIGSEGV em arquivos grandes)
+
+---
+
+## ADR-014 — Monitoramento do Algoritmo Genético em Tempo Real (Snapshots + Polling Incremental)
+
+**Data**: 2026-07  
+**Status**: Aceito
+
+### Contexto
+O algoritmo genético roda em segundo plano e pode levar vários minutos para concluir todas as gerações. O usuário precisa acompanhar a evolução das métricas (fitness, F1, acurácia e parâmetros) em tempo real no dashboard, sem que a página Streamlit precise ser atualizada manualmente ou pisque de forma desagradável.
+
+### Alternativas Consideradas
+1. **Compartilhamento de Arquivo Local**: O frontend ler diretamente o arquivo JSONL de logs gerado pelo backend.
+   - *Contra*: Não funciona em arquiteturas de containers distribuídas onde backend e frontend rodam em hosts separados sem volumes compartilhados.
+2. **Mecanismo de WebSockets / SSE**: Enviar atualizações via streaming do backend para o frontend.
+   - *Contra*: Alta complexidade de integração com o modelo de execução síncrono/passivo do Streamlit.
+3. **Persistência Incremental por Geração (JSONL) + Polling via REST API**:
+   - *Decisão*: O backend grava um snapshot estruturado em um arquivo local JSONL (`/tmp/ag_job_{job_id}_generations.jsonl`) a cada geração do GA. O frontend faz chamadas periódicas via HTTP (`GET /tuning/jobs/{job_id}/generations?since=N`) buscando apenas gerações novas.
+
+### Justificativa
+- **Isolamento de Infraestrutura**: O frontend nunca acessa o filesystem do backend; a comunicação é 100% via API REST.
+- **Eficiência**: O parâmetro `since=N` garante uma busca incremental rápida, sem trafegar o histórico inteiro a cada requisição.
+- **Resiliência do Streamlit**: Em vez de loops `while True` bloqueantes que causam colisões de elementos (`StreamlitDuplicateElementKey`), usamos o ciclo de vida nativo com `st.rerun()` e `time.sleep()`. A reconciliação do React no Streamlit garante que apenas as informações alteradas atualizem, de forma extremamente fluida e sem piscar.
+
+### Consequências
+- A assinatura do `GeneticAlgorithm.run()` agora aceita `job_id` para persistência em tempo real.
+- Novo endpoint implementado no backend: `GET /tuning/jobs/{job_id}/generations`.
+- Os jobs de tuning do pipeline principal (`/pipeline/tune`) foram migrados de subprocessos isolados para chamadas diretas através do `tuning_service`, permitindo o compartilhamento de contexto de execução e gravação de snapshots em tempo real.
+- Para evitar a lentidão de processamento do GA em datasets muito grandes (1.5M+ linhas), implementou-se amostragem estratificada (`sample_size=50_000`) como padrão no `tuning_service`.
+
