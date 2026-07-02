@@ -30,7 +30,7 @@ router = APIRouter(prefix="/tuning", tags=["tuning"])
 def _run_tuning_job(job_id: str, params: dict) -> None:
     set_job_running(job_id)
     try:
-        result = tuning_service.run_tuning(**params)
+        result = tuning_service.run_tuning(**params, job_id=job_id)
         set_job_completed(job_id, result)
     except Exception as exc:
         logger.exception("Job %s falhou", job_id)
@@ -86,3 +86,31 @@ def get_latest_logs():
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return LatestLogsResponse(**logs)
+
+
+@router.get("/jobs/{job_id}/generations")
+def get_generation_snapshots(job_id: str, since: int = 0):
+    """
+    Retorna snapshots de gerações do AG posteriores a `since`.
+
+    Usado pelo frontend para polling incremental em tempo real.
+
+    Args:
+        job_id: Identificador do job de tuning.
+        since: Cursor — apenas gerações com número > since são retornadas.
+
+    Returns:
+        JSON com lista de snapshots e a geração máxima encontrada.
+    """
+    job = get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Job não encontrado: {job_id}")
+
+    snapshots = tuning_service.get_generation_snapshots(job_id, since_generation=since)
+    last_generation = snapshots[-1]["generation"] if snapshots else since
+    return {
+        "job_id": job_id,
+        "snapshots": snapshots,
+        "last_generation": last_generation,
+        "job_status": job["status"],
+    }

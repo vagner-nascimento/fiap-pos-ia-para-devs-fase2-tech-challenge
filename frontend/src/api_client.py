@@ -56,6 +56,21 @@ class TuningClient:
             return self._poll_job(client_base=self.base_url, job_id=data["job_id"])
         return data
 
+    def start_tuning_async(self, **params) -> str:
+        """
+        Inicia o tuning em modo assíncrono e retorna o job_id imediatamente.
+
+        Diferente de `run_tuning(async_mode=True)`, não bloqueia aguardando o resultado.
+        Use este método quando o frontend implementa seu próprio loop de polling.
+
+        Returns:
+            job_id: Identificador único do job iniciado.
+        """
+        payload = {**params, "async_mode": True}
+        with httpx.Client(base_url=self.base_url, timeout=30.0) as client:
+            data = self._handle_response(client.post("/tuning/run", json=payload))
+        return data["job_id"]
+
     def _poll_job(self, client_base: str, job_id: str) -> dict:
         with httpx.Client(base_url=client_base, timeout=self.timeout) as client:
             while True:
@@ -66,6 +81,22 @@ class TuningClient:
                 if status == "failed":
                     raise ApiError(status_data.get("error") or "Job falhou")
                 time.sleep(POLL_INTERVAL_SEC)
+
+    def get_generation_snapshots(self, job_id: str, since: int = 0) -> dict:
+        """
+        Busca snapshots de gerações do AG posteriores a `since`.
+
+        Args:
+            job_id: Identificador do job de tuning.
+            since: Cursor — apenas gerações com número > since são retornadas.
+
+        Returns:
+            Dict com chaves: snapshots (list), last_generation (int), job_status (str).
+        """
+        with httpx.Client(base_url=self.base_url, timeout=10.0) as client:
+            return self._handle_response(
+                client.get(f"/tuning/jobs/{job_id}/generations", params={"since": since})
+            )
 
     def get_latest_logs(self) -> dict:
         with httpx.Client(base_url=self.base_url, timeout=30.0) as client:
@@ -96,6 +127,38 @@ class PipelineClient:
         with httpx.Client(base_url=self.base_url, timeout=self.timeout) as client:
             data = self._handle_response(client.post("/pipeline/tune", json=params))
         return self._poll_job(self.base_url, data["job_id"])
+
+    def start_pipeline_tuning_async(self, **params) -> str:
+        """
+        Inicia o tuning via /pipeline/tune e retorna o job_id imediatamente.
+
+        Usa o dataset processado pelo preprocessing (path fixo no backend).
+        Não bloqueia aguardando o resultado.
+
+        Returns:
+            job_id: Identificador único do job iniciado.
+        """
+        with httpx.Client(base_url=self.base_url, timeout=30.0) as client:
+            data = self._handle_response(client.post("/pipeline/tune", json=params))
+        return data["job_id"]
+
+    def get_generation_snapshots(self, job_id: str, since: int = 0) -> dict:
+        """
+        Busca snapshots de gerações do AG posteriores a `since`.
+
+        Chama /tuning/jobs/{job_id}/generations (endpoint dedicado ao dashboard).
+
+        Args:
+            job_id: Identificador do job de tuning.
+            since: Cursor — apenas gerações com número > since são retornadas.
+
+        Returns:
+            Dict com chaves: snapshots (list), last_generation (int), job_status (str).
+        """
+        with httpx.Client(base_url=self.base_url, timeout=10.0) as client:
+            return self._handle_response(
+                client.get(f"/tuning/jobs/{job_id}/generations", params={"since": since})
+            )
 
     def run_predictions(self) -> dict:
         with httpx.Client(base_url=self.base_url, timeout=self.timeout) as client:
