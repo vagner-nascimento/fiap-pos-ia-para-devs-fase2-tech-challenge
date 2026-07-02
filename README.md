@@ -27,9 +27,9 @@ O projeto é dividido em dois componentes principais:
 - **Scripts** de pré-processamento e tuning de dados
 
 ### Frontend
-- **Dashboard Streamlit** para monitoramento do GA Co-Evolutivo
+- **Dashboard Streamlit** com monitoramento em tempo real da evolução do GA Co-Evolutivo (gráficos Plotly atualizados incrementalmente)
 - **Chat interativo** com o agente de saúde nutricional
-- **Visualização** de resultados e estatísticas
+- **Visualização** de resultados e estatísticas do modelo vencedor
 
 Para mais detalhes sobre a arquitetura, consulte:
 - [Backend README](backend/README.md)
@@ -201,6 +201,7 @@ Para desenvolvimento local, consulte as instruções detalhadas em:
 | `GET` | `/tuning/datasets` | Lista CSVs disponíveis |
 | `POST` | `/tuning/run` | Executa GA Co-Evolutivo (modo legado) |
 | `GET` | `/tuning/jobs/{id}` | Status de job assíncrono (tuning) |
+| `GET` | `/tuning/jobs/{id}/generations` | Retorna snapshots de gerações (polling incremental) |
 | `GET` | `/tuning/logs/latest` | Último histórico GA |
 | `POST` | `/llm/session` | Cria sessão do agente |
 | `POST` | `/llm/chat` | Pergunta ao agente ReAct |

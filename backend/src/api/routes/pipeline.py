@@ -31,6 +31,7 @@ from src.api.pipeline_store import (
     set_tuning_completed,
 )
 from src.data.ingest import extract_rar_file
+from src.services import tuning_service
 
 logger = logging.getLogger(__name__)
 
@@ -118,42 +119,27 @@ def _run_preprocessing_job(job_id: str) -> None:
 
 
 def _run_tuning_job(job_id: str, params: TuningRequest) -> None:
-    """Executa o script de tuning em background."""
+    """Executa o tuning via tuning_service (direto, sem subprocess)."""
     set_job_running(job_id)
     try:
-        cmd = [
-            sys.executable,
-            "scripts/run_tuning.py",
-            "--input", PROCESSED_CSV_PATH,
-            "--output-model", MODEL_PATH,
-            "--target", "TARGET",
-            "--pop-size", str(params.pop_size),
-            "--max-generations", str(params.max_generations),
-            "--patience", str(params.patience),
-            "--k-folds", str(params.k_folds),
-            "--aggressiveness", params.aggressiveness,
-            "--elitism" if params.elitism else "--no-elitism",
-            "--cxpb", str(params.crossover_probability),
-            "--mutpb", str(params.mutation_probability),
-            "--indpb", str(params.individual_mutation_probability),
-            "--random-seed", str(params.random_seed),
-        ]
-        
-        result = subprocess.run(
-            cmd,
-            cwd=Path(__file__).parent.parent.parent.parent,
-            capture_output=True,
-            text=True,
+        result = tuning_service.run_tuning(
+            dataset=PROCESSED_CSV_PATH,
+            target_col="TARGET",
+            pop_size=params.pop_size,
+            max_generations=params.max_generations,
+            patience=params.patience,
+            k_folds=params.k_folds,
+            aggressiveness=params.aggressiveness,
+            elitism=params.elitism,
+            cxpb=params.crossover_probability,
+            mutpb=params.mutation_probability,
+            indpb=params.individual_mutation_probability,
+            random_seed=params.random_seed,
+            save_logs=True,
+            job_id=job_id,
         )
-        
-        if result.returncode != 0:
-            raise Exception(f"Tuning failed: {result.stderr}")
-        
         set_tuning_completed()
-        
-        set_job_completed(job_id, {
-            "model_path": MODEL_PATH,
-        })
+        set_job_completed(job_id, {"model_path": MODEL_PATH, **result})
     except Exception as exc:
         logger.exception("Tuning job %s failed", job_id)
         set_job_failed(job_id, str(exc))
