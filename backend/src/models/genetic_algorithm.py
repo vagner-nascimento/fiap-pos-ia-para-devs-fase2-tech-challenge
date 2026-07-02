@@ -22,6 +22,7 @@ from __future__ import annotations
 import copy
 import logging
 import random
+from datetime import datetime, timezone
 from typing import Literal
 
 import numpy as np
@@ -35,6 +36,7 @@ from src.models.ga_operators import (
     mutate_knn,
     mutate_rf,
 )
+from src.models.ga_snapshot import save_generation_snapshot
 from src.models.individuo import Individuo, IndividuoKNN, IndividuoRF
 
 logger = logging.getLogger(__name__)
@@ -78,6 +80,7 @@ class GeneticAlgorithm:
         cxpb: float = 0.7,
         mutpb: float = 0.3,
         random_seed: int = 42,
+        job_id: str | None = None,
     ) -> None:
         self.X = X
         self.y = y
@@ -91,15 +94,16 @@ class GeneticAlgorithm:
         self.cxpb = cxpb
         self.mutpb = mutpb
         self.random_seed = random_seed
+        self.job_id = job_id
 
         random.seed(random_seed)
         np.random.seed(random_seed)
 
         logger.info(
             "GeneticAlgorithm inicializado | pop=%d/tipo | max_gen=%d | "
-            "patience=%d | k_folds=%d | aggressiveness=%s | elitism=%s",
+            "patience=%d | k_folds=%d | aggressiveness=%s | elitism=%s | job_id=%s",
             pop_size, max_generations, patience, k_folds,
-            mutation_aggressiveness, elitism,
+            mutation_aggressiveness, elitism, job_id,
         )
 
     # ------------------------------------------------------------------
@@ -364,9 +368,29 @@ class GeneticAlgorithm:
 
             # Estatísticas ANTES dos operadores (representa o estado da geração)
             stopped_early = no_improvement_count >= self.patience
-            generations_stats.append(
-                self._gen_stats(gen + 1, pop_rf, pop_knn, stopped_early)
-            )
+            gen_stat = self._gen_stats(gen + 1, pop_rf, pop_knn, stopped_early)
+            generations_stats.append(gen_stat)
+
+            # --- Snapshot em tempo real (Opção C — JSONL interno ao backend) ---
+            if self.job_id is not None:
+                pool_scores = [
+                    fitness_score(i.fitness_values or (0.0, 0.0)) for i in pool
+                ]
+                pool_accs = [(i.fitness_values or (0.0, 0.0))[1] for i in pool]
+                snapshot = {
+                    "generation": gen + 1,
+                    "best_fitness": gen_stat["global_best_score"],
+                    "avg_fitness": round(float(np.mean(pool_scores)), 6),
+                    "std_fitness": round(float(np.std(pool_scores)), 6),
+                    "best_f2": gen_stat["global_best_f1"],
+                    "best_accuracy": round(max(pool_accs), 6),
+                    "best_params": (
+                        overall_best.hyperparams if overall_best is not None else {}
+                    ),
+                    "model_type": gen_stat["global_best_type"],
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+                save_generation_snapshot(self.job_id, snapshot)
 
             if stopped_early:
                 stop_reason = "convergence"

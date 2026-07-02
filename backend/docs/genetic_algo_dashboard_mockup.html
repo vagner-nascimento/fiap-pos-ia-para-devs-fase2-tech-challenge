@@ -1,0 +1,184 @@
+
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font-sans);background:transparent}
+  .dash{padding:1rem 0;display:flex;flex-direction:column;gap:16px}
+  .header{display:flex;align-items:center;justify-content:space-between;padding-bottom:8px;border-bottom:0.5px solid var(--color-border-tertiary)}
+  .header h2{font-size:16px;font-weight:500;color:var(--color-text-primary)}
+  .badge{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:500}
+  .badge.running{background:var(--color-background-success);color:var(--color-text-success)}
+  .badge.done{background:var(--color-background-secondary);color:var(--color-text-secondary)}
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .metric{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:12px 14px}
+  .metric-label{font-size:11px;color:var(--color-text-secondary);margin-bottom:4px}
+  .metric-value{font-size:22px;font-weight:500;color:var(--color-text-primary)}
+  .metric-sub{font-size:11px;color:var(--color-text-secondary);margin-top:2px}
+  .metric-up{color:var(--color-text-success)}
+  .charts{display:grid;grid-template-columns:3fr 2fr;gap:12px}
+  .card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:14px}
+  .card-title{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:12px}
+  .bottom-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .param-table{width:100%;font-size:12px;border-collapse:collapse}
+  .param-table td{padding:5px 6px;border-bottom:0.5px solid var(--color-border-tertiary);color:var(--color-text-secondary)}
+  .param-table td:first-child{color:var(--color-text-primary);font-weight:500}
+  .param-table tr:last-child td{border-bottom:none}
+  .legend{display:flex;gap:14px;margin-bottom:10px;flex-wrap:wrap}
+  .legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+  .leg-dot{width:10px;height:10px;border-radius:50%}
+  .model-tabs{display:flex;gap:6px;margin-bottom:10px}
+  .tab{font-size:11px;padding:3px 10px;border-radius:20px;border:0.5px solid var(--color-border-secondary);cursor:pointer;color:var(--color-text-secondary);background:transparent}
+  .tab.active{background:var(--color-background-info);color:var(--color-text-info);border-color:transparent}
+  .poll-bar{font-size:11px;color:var(--color-text-secondary);display:flex;align-items:center;gap:8px;padding-top:4px}
+  .dot-pulse{width:7px;height:7px;border-radius:50%;background:var(--color-text-success);animation:pulse 1.4s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+</style>
+
+<div class="dash">
+
+  <div class="header">
+    <h2>Otimização por algoritmo genético</h2>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span class="badge running">● Em execução</span>
+      <span style="font-size:11px;color:var(--color-text-secondary)">Geração 14 / 50</span>
+    </div>
+  </div>
+
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">Melhor fitness</div>
+      <div class="metric-value">0.874</div>
+      <div class="metric-sub metric-up">▲ +0.023 vs gen anterior</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Melhor F2 score</div>
+      <div class="metric-value">0.891</div>
+      <div class="metric-sub metric-up">▲ +0.017</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Melhor acurácia</div>
+      <div class="metric-value">0.843</div>
+      <div class="metric-sub metric-up">▲ +0.031</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Fitness médio da pop.</div>
+      <div class="metric-value">0.731</div>
+      <div class="metric-sub" style="color:var(--color-text-secondary)">desvpad 0.044</div>
+    </div>
+  </div>
+
+  <div class="charts">
+    <div class="card">
+      <div class="card-title">Evolução do fitness por geração</div>
+      <div class="legend">
+        <span class="legend-item"><span class="leg-dot" style="background:#3266ad"></span>Melhor fitness</span>
+        <span class="legend-item"><span class="leg-dot" style="background:#7aa3d4"></span>Fitness médio</span>
+        <span class="legend-item"><span class="leg-dot" style="background:#a0c878;border-radius:2px"></span>Banda ±1σ</span>
+      </div>
+      <svg width="100%" viewBox="0 0 340 160">
+        <defs>
+          <linearGradient id="bandg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#a0c878" stop-opacity="0.25"/>
+            <stop offset="100%" stop-color="#a0c878" stop-opacity="0.05"/>
+          </linearGradient>
+        </defs>
+        <!-- axes -->
+        <line x1="32" y1="10" x2="32" y2="138" stroke="var(--color-border-secondary)" stroke-width="0.5"/>
+        <line x1="32" y1="138" x2="334" y2="138" stroke="var(--color-border-secondary)" stroke-width="0.5"/>
+        <!-- y labels -->
+        <text x="28" y="14" text-anchor="end" font-size="9" fill="var(--color-text-secondary)" font-family="var(--font-sans)">1.0</text>
+        <text x="28" y="46" text-anchor="end" font-size="9" fill="var(--color-text-secondary)" font-family="var(--font-sans)">0.9</text>
+        <text x="28" y="78" text-anchor="end" font-size="9" fill="var(--color-text-secondary)" font-family="var(--font-sans)">0.8</text>
+        <text x="28" y="110" text-anchor="end" font-size="9" fill="var(--color-text-secondary)" font-family="var(--font-sans)">0.7</text>
+        <text x="28" y="138" text-anchor="end" font-size="9" fill="var(--color-text-secondary)" font-family="var(--font-sans)">0.6</text>
+        <!-- grid lines -->
+        <line x1="32" y1="46" x2="334" y2="46" stroke="var(--color-border-tertiary)" stroke-width="0.5" stroke-dasharray="3 3"/>
+        <line x1="32" y1="78" x2="334" y2="78" stroke="var(--color-border-tertiary)" stroke-width="0.5" stroke-dasharray="3 3"/>
+        <line x1="32" y1="110" x2="334" y2="110" stroke="var(--color-border-tertiary)" stroke-width="0.5" stroke-dasharray="3 3"/>
+        <!-- band ±1σ (avg ± spread) -->
+        <polygon points="34,122 55,110 76,98 97,92 118,82 139,74 160,68 181,64 202,60 223,58 244,55 265,53 283,51 20,20 283,51 265,53 244,55 223,58 202,60 181,64 160,68 139,74 118,82 97,92 76,98 55,110 34,122 34,130 55,120 76,108 97,102 118,94 139,86 160,80 181,76 202,72 223,70 244,67 265,65 283,63" fill="url(#bandg)"/>
+        <!-- avg line -->
+        <polyline points="34,126 55,115 76,103 97,97 118,88 139,80 160,74 181,70 202,66 223,64 244,61 265,59 283,57" fill="none" stroke="#7aa3d4" stroke-width="1.2" stroke-dasharray="4 2"/>
+        <!-- best line -->
+        <polyline points="34,110 55,95 76,80 97,72 118,60 139,52 160,47 181,44 202,42 223,40 244,39 265,38 283,37" fill="none" stroke="#3266ad" stroke-width="1.8"/>
+        <!-- current gen dot -->
+        <circle cx="283" cy="37" r="4" fill="#3266ad"/>
+        <circle cx="283" cy="57" r="3" fill="#7aa3d4"/>
+        <!-- x labels -->
+        <text x="34" y="148" text-anchor="middle" font-size="9" fill="var(--color-text-secondary)" font-family="var(--font-sans)">1</text>
+        <text x="118" y="148" text-anchor="middle" font-size="9" fill="var(--color-text-secondary)" font-family="var(--font-sans)">5</text>
+        <text x="202" y="148" text-anchor="middle" font-size="9" fill="var(--color-text-secondary)" font-family="var(--font-sans)">10</text>
+        <text x="283" y="148" text-anchor="middle" font-size="9" fill="var(--color-text-secondary)" font-family="var(--font-sans)">14</text>
+        <text x="183" y="158" text-anchor="middle" font-size="9" fill="var(--color-text-secondary)" font-family="var(--font-sans)">Geração</text>
+      </svg>
+    </div>
+
+    <div class="card">
+      <div class="card-title">F2 score vs acurácia</div>
+      <svg width="100%" viewBox="0 0 210 160">
+        <line x1="28" y1="10" x2="28" y2="138" stroke="var(--color-border-secondary)" stroke-width="0.5"/>
+        <line x1="28" y1="138" x2="204" y2="138" stroke="var(--color-border-secondary)" stroke-width="0.5"/>
+        <text x="24" y="14" text-anchor="end" font-size="8" fill="var(--color-text-secondary)" font-family="var(--font-sans)">1.0</text>
+        <text x="24" y="78" text-anchor="end" font-size="8" fill="var(--color-text-secondary)" font-family="var(--font-sans)">0.8</text>
+        <text x="24" y="138" text-anchor="end" font-size="8" fill="var(--color-text-secondary)" font-family="var(--font-sans)">0.6</text>
+        <text x="50" y="148" font-size="8" fill="var(--color-text-secondary)" font-family="var(--font-sans)">0.6</text>
+        <text x="104" y="148" font-size="8" fill="var(--color-text-secondary)" font-family="var(--font-sans)">0.8</text>
+        <text x="156" y="148" font-size="8" fill="var(--color-text-secondary)" font-family="var(--font-sans)">1.0</text>
+        <text x="116" y="158" text-anchor="middle" font-size="8" fill="var(--color-text-secondary)" font-family="var(--font-sans)">Acurácia →</text>
+        <line x1="28" y1="78" x2="204" y2="78" stroke="var(--color-border-tertiary)" stroke-width="0.5" stroke-dasharray="2 2"/>
+        <line x1="116" y1="10" x2="116" y2="138" stroke="var(--color-border-tertiary)" stroke-width="0.5" stroke-dasharray="2 2"/>
+        <!-- diagonal ideal line -->
+        <line x1="28" y1="138" x2="204" y2="14" stroke="var(--color-border-tertiary)" stroke-width="0.5" stroke-dasharray="4 3"/>
+        <!-- scatter points — older gens (gray) -->
+        <circle cx="60" cy="118" r="3" fill="#b4b2a9" opacity="0.7"/>
+        <circle cx="72" cy="108" r="3" fill="#b4b2a9" opacity="0.7"/>
+        <circle cx="85" cy="100" r="3" fill="#b4b2a9" opacity="0.7"/>
+        <circle cx="98" cy="92" r="3" fill="#b4b2a9" opacity="0.7"/>
+        <circle cx="104" cy="84" r="3.5" fill="#888780" opacity="0.7"/>
+        <circle cx="114" cy="78" r="3.5" fill="#888780" opacity="0.7"/>
+        <circle cx="120" cy="72" r="3.5" fill="#888780" opacity="0.7"/>
+        <circle cx="130" cy="66" r="4" fill="#5f5e5a" opacity="0.8"/>
+        <circle cx="138" cy="60" r="4" fill="#5f5e5a" opacity="0.8"/>
+        <!-- recent gens (blue) -->
+        <circle cx="148" cy="54" r="4.5" fill="#7aa3d4" opacity="0.85"/>
+        <circle cx="155" cy="50" r="4.5" fill="#7aa3d4" opacity="0.85"/>
+        <circle cx="161" cy="46" r="4.5" fill="#3266ad" opacity="0.9"/>
+        <!-- best (current) -->
+        <circle cx="168" cy="41" r="5.5" fill="#3266ad" stroke="white" stroke-width="1.5"/>
+        <text x="175" y="38" font-size="8" fill="var(--color-text-primary)" font-family="var(--font-sans)">gen 14</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="bottom-row">
+    <div class="card">
+      <div class="card-title">Melhores parâmetros encontrados</div>
+      <div class="model-tabs">
+        <span class="tab active">KNN</span>
+        <span class="tab">Random Forest</span>
+      </div>
+      <table class="param-table">
+        <tr><td>n_neighbors</td><td>7</td></tr>
+        <tr><td>weights</td><td>distance</td></tr>
+        <tr><td>metric</td><td>minkowski</td></tr>
+        <tr><td>p</td><td>2</td></tr>
+        <tr><td>algorithm</td><td>ball_tree</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title">Progresso e config. da execução</div>
+      <table class="param-table" style="margin-bottom:10px">
+        <tr><td>Geração atual</td><td>14 / 50</td></tr>
+        <tr><td>Tamanho da população</td><td>40 indivíduos</td></tr>
+        <tr><td>Taxa de mutação</td><td>12%</td></tr>
+        <tr><td>Taxa de crossover</td><td>75%</td></tr>
+        <tr><td>Peso F2 no fitness</td><td>0.7</td></tr>
+        <tr><td>Peso acurácia no fitness</td><td>0.3</td></tr>
+      </table>
+      <div class="poll-bar">
+        <span class="dot-pulse"></span>
+        <span>Polling a cada 3s — última atualização: agora</span>
+      </div>
+    </div>
+  </div>
+
+</div>
