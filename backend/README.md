@@ -186,6 +186,7 @@ Endpoints principais:
 | `GET` | `/tuning/datasets` | Lista CSVs em `data/processed/` |
 | `POST` | `/tuning/run` | Executa GA Co-Evolutivo (modo legado) |
 | `GET` | `/tuning/jobs/{id}` | Status de job assíncrono (tuning) |
+| `GET` | `/tuning/jobs/{id}/generations` | Retorna snapshots de gerações (polling incremental) |
 | `GET` | `/tuning/logs/latest` | Último histórico GA |
 | `POST` | `/llm/session` | Cria sessão do agente (upload CSV) |
 | `POST` | `/llm/chat` | Pergunta ao agente ReAct |

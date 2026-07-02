@@ -229,8 +229,8 @@ graph TD
 3. **Predições**: O endpoint `POST /pipeline/predict` (ou `run_predictions.py`) aplica o modelo treinado sobre os dados processados, gerando `models/artifacts/predictions.csv`.
 
 4. **Interface Visual e Agente**: O front-end Streamlit (`../frontend/`) consome a API REST do backend:
-   - Painel **🧬 Tuning Genético** (`frontend/app/pages/tuning_monitor.py`): dashboard via `POST /tuning/run`
-   - Painel **💬 Agente Nutricional** (`frontend/app/pages/chat_agent.py`): chat via `/llm/session` e `/llm/chat`
+    - Painel **🧬 Tuning Genético** ([`frontend/app/pages/02_tuning.py`](file:///home/luizbaroni/projetos/fiap/fiap-pos-ia-para-devs-fase2-tech-challenge/frontend/app/pages/02_tuning.py)): dashboard em tempo real via `/pipeline/tune` e polling de gerações via `/tuning/jobs/{id}/generations`
+    - Painel **💬 Agente Nutricional** ([`frontend/app/pages/04_llm_chat.py`](file:///home/luizbaroni/projetos/fiap/fiap-pos-ia-para-devs-fase2-tech-challenge/frontend/app/pages/04_llm_chat.py)): chat interativo via `/llm/session` e `/llm/chat`
 
 ---
 
@@ -243,20 +243,32 @@ A rota `src/api/routes/pipeline.py` expõe um pipeline orquestrado em 3 etapas c
 | Método | Rota | Pré-requisito | Descrição |
 |--------|------|----------------|----------|
 | `POST` | `/pipeline/preprocess` | `.csv` ou `.rar` em `data/raw/` | Pré-processamento completo (extrai .rar, limpa, gera features) |
-| `POST` | `/pipeline/tune` | `preprocess` concluído | GA Co-Evolutivo (RF vs KNN) |
+| `POST` | `/pipeline/tune` | `preprocess` concluído | GA Co-Evolutivo (RF vs KNN) com suporte a snapshots em tempo real |
 | `POST` | `/pipeline/predict` | `tune` concluído | Gera `predictions.csv` com o melhor modelo |
 | `GET` | `/pipeline/status` | — | Estado atual de cada etapa do pipeline |
 | `GET` | `/pipeline/jobs/{id}` | — | Status e resultado de um job |
+| `GET` | `/tuning/jobs/{id}/generations` | — | Endpoint incremental de snapshots de gerações (polling em tempo real) |
 
-### Padrão de Job Assíncrono
+### Padrão de Job Assíncrono com Monitoramento em Tempo Real
 
-```
-POST /pipeline/preprocess
-  → { "job_id": "uuid", "status": "pending" }
+1. O frontend inicia o tuning:
+   ```
+   POST /pipeline/tune (assíncrono)
+     → retorna { "job_id": "uuid" } imediatamente
+   ```
 
-GET /pipeline/jobs/{job_id}    # polling até status != "running"
-  → { "status": "completed", "result": { ... } }
-  → { "status": "failed",    "error": "..." }
-```
+2. Enquanto o job de tuning executa no backend:
+   - A cada geração concluída no loop de `GeneticAlgorithm.run()`, um snapshot é persistido em `/tmp/ag_job_{job_id}_generations.jsonl`.
+   - O frontend realiza chamadas periódicas (polling reativo via `st.rerun()`):
+     ```
+     GET /tuning/jobs/{job_id}/generations?since=N
+       → retorna apenas novos snapshots desde a geração N e status atual do job
+     ```
+   - O dashboard Streamlit é atualizado de forma incremental na tela, atualizando gráficos Plotly, cartões de métricas e tabelas de parâmetros.
 
-Em cada etapa, a execução é delegada a um **subprocess Python** (`scripts/run_*.py`) para isolar memória e evitar SIGSEGV do parser C do pandas em volumes Docker com arquivos grandes.
+3. Quando o job conclui:
+   - O endpoint de gerações retorna o status `"completed"` ou `"failed"`.
+   - O frontend interrompe o ciclo de polling e renderiza o estado final estático de sucesso ou erro.
+
+Para evitar problemas de memória e timeouts, a execução do pré-processamento e de predições é delegada a subprocessos CLI Python (`scripts/run_*.py`), enquanto a etapa de tuning é executada diretamente pelo `tuning_service` (permitindo monitoramento em tempo real do progresso).
+
