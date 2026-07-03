@@ -77,6 +77,27 @@ class TestTuningEndpoints:
         assert len(data["generations_stats"]) == 2
         assert data["best_individual"] is not None
 
+    def test_run_tuning_with_sample_size(self, api_client):
+        payload = {
+            "dataset": "test_data.csv",
+            "target_col": "TARGET",
+            "pop_size": 4,
+            "max_generations": 2,
+            "patience": 10,
+            "k_folds": 3,
+            "aggressiveness": "low",
+            "elitism": True,
+            "random_seed": 42,
+            "async_mode": False,
+            "sample_size": 30,
+        }
+        response = api_client.post("/tuning/run", json=payload)
+        assert response.status_code == 200
+        data = response.json()
+        assert "generations_stats" in data
+        assert len(data["generations_stats"]) == 2
+        assert data["best_individual"] is not None
+
     def test_run_tuning_dataset_not_found(self, api_client):
         response = api_client.post(
             "/tuning/run",
