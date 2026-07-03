@@ -179,12 +179,12 @@ Endpoints principais:
 |--------|------|-----------|
 | `GET` | `/health` | Health check |
 | `POST` | `/pipeline/preprocess` | Inicia pré-processamento (extrai .rar se necessário) |
-| `POST` | `/pipeline/tune` | Inicia tuning genético (requer preprocess concluído) |
+| `POST` | `/pipeline/tune` | Inicia tuning genético (requer preprocess concluído. Aceita parâmetro opcional `sample_size`) |
 | `POST` | `/pipeline/predict` | Gera predições (requer tune concluído) |
 | `GET` | `/pipeline/status` | Estado atual do pipeline |
 | `GET` | `/pipeline/jobs/{id}` | Status e resultado de um job do pipeline |
 | `GET` | `/tuning/datasets` | Lista CSVs em `data/processed/` |
-| `POST` | `/tuning/run` | Executa GA Co-Evolutivo (modo legado) |
+| `POST` | `/tuning/run` | Executa GA Co-Evolutivo (modo legado. Aceita parâmetro opcional `sample_size`) |
 | `GET` | `/tuning/jobs/{id}` | Status de job assíncrono (tuning) |
 | `GET` | `/tuning/jobs/{id}/generations` | Retorna snapshots de gerações (polling incremental) |
 | `GET` | `/tuning/logs/latest` | Último histórico GA |

@@ -19,6 +19,7 @@ class TuningRunRequest(BaseModel):
     indpb: float = Field(0.5, ge=0.1, le=1.0)
     random_seed: int = Field(42, ge=0)
     async_mode: bool = Field(False, description="Se True, retorna job_id para polling")
+    sample_size: int = Field(50000, ge=0, description="Tamanho máximo da amostragem (0 para completo)")
 
 
 class TuningRunResponse(BaseModel):
