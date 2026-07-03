@@ -78,6 +78,23 @@ with st.sidebar:
         help="Número de folds para validação cruzada",
     )
 
+    st.subheader("Amostragem (Sampling)")
+    use_sampling = st.checkbox(
+        "Habilitar amostragem",
+        value=True,
+        help="Reduz o número de registros para acelerar a execução do tuning genético",
+    )
+    if use_sampling:
+        sample_size = st.number_input(
+            "Tamanho da amostra",
+            min_value=100,
+            value=50000,
+            step=5000,
+            help="Número máximo de registros estratificados para treinamento",
+        )
+    else:
+        sample_size = 0
+
     st.subheader("Operadores Genéticos")
     aggressiveness = st.select_slider(
         "Agressividade da mutação",
@@ -131,6 +148,7 @@ with st.sidebar:
             "mutation_probability": mutation_probability,
             "individual_mutation_probability": individual_mutation_probability,
             "random_seed": random_seed,
+            "sample_size": sample_size,
         }
         try:
             with st.spinner("Iniciando job de tuning..."):
@@ -145,6 +163,7 @@ with st.sidebar:
                     "Gerações totais (máx)": max_generations,
                     "Patience (convergência)": patience,
                     "K-Folds": k_folds,
+                    "Tamanho da amostra": f"{sample_size:,} (estratificado)" if sample_size > 0 else "Completo (sem amostragem)",
                     "Agressividade da mutação": aggressiveness,
                     "Elitismo": "✅ Ativo" if elitism else "❌ Inativo",
                     "P(crossover)": f"{crossover_probability:.2f}",
