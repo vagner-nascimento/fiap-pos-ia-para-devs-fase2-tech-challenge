@@ -181,6 +181,7 @@ flowchart TD
 | `cxpb` | `--cxpb` | 0.7 | Prob. de crossover |
 | `mutpb` | `--mutpb` | 0.3 | Prob. de mutação |
 | `random_seed` | `--random-seed` | 42 | Semente para reprodutibilidade |
+| `sample_size` | `--sample` | 50000 | Tamanho máximo da amostragem (0 para base completa) |
 
 ---
 
