@@ -50,6 +50,7 @@ class TuningRequest(BaseModel):
     mutation_probability: float = Field(default=0.3, ge=0.0, le=1.0, description="Mutation probability")
     individual_mutation_probability: float = Field(default=0.5, ge=0.0, le=1.0, description="Individual gene mutation probability")
     random_seed: int = Field(default=42, ge=0, description="Random seed for reproducibility")
+    sample_size: int = Field(default=50000, ge=0, description="Maximum number of samples for training. 0 means complete dataset.")
 
 
 # Fixed paths
@@ -137,6 +138,7 @@ def _run_tuning_job(job_id: str, params: TuningRequest) -> None:
             random_seed=params.random_seed,
             save_logs=True,
             job_id=job_id,
+            sample_size=params.sample_size,
         )
         set_tuning_completed()
         set_job_completed(job_id, {"model_path": MODEL_PATH, **result})
