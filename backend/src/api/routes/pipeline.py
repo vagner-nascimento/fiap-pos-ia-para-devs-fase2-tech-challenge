@@ -63,40 +63,56 @@ PREDICTIONS_PATH = "models/artifacts/predictions.csv"
 
 
 def _run_preprocessing_job(job_id: str) -> None:
-    """Executa o script de preprocessing em background."""
+    """Executa o script de preprocessing em background gravando os logs em tempo real."""
     set_job_running(job_id)
+    log_path = Path(f"/tmp/preprocessing_{job_id}.log")
+    log_path.parent.mkdir(parents=True, exist_ok=True)
     try:
-        # Reset pipeline state when preprocessing starts
-        reset_pipeline()
+        with open(log_path, "w", encoding="utf-8") as log_file:
+            log_file.write(f"=== Iniciando Job de Preprocessing: {job_id} ===\n")
+            log_file.flush()
+            
+            # Reset pipeline state when preprocessing starts
+            reset_pipeline()
 
-        # Extract .rar file if CSV doesn't exist
-        csv_path = Path(RAW_CSV_PATH)
-        rar_path = Path(RAR_PATH)
-        if not csv_path.exists() and rar_path.exists():
-            logger.info(f"CSV não encontrado, extraindo de {RAR_PATH}")
-            extract_rar_file(RAR_PATH, RAW_CSV_PATH)
-        elif not csv_path.exists() and not rar_path.exists():
-            raise FileNotFoundError(
-                f"Arquivo bruto não encontrado: nem {RAW_CSV_PATH} nem {RAR_PATH} existem"
+            # Extract .rar file if CSV doesn't exist
+            csv_path = Path(RAW_CSV_PATH)
+            rar_path = Path(RAR_PATH)
+            if not csv_path.exists() and rar_path.exists():
+                log_file.write(f"CSV não encontrado, extraindo de {RAR_PATH}...\n")
+                log_file.flush()
+                logger.info(f"CSV não encontrado, extraindo de {RAR_PATH}")
+                extract_rar_file(RAR_PATH, RAW_CSV_PATH)
+                log_file.write("Extração concluída com sucesso.\n\n")
+                log_file.flush()
+            elif not csv_path.exists() and not rar_path.exists():
+                raise FileNotFoundError(
+                    f"Arquivo bruto não encontrado: nem {RAW_CSV_PATH} nem {RAR_PATH} existem"
+                )
+
+            cmd = [
+                sys.executable,
+                "scripts/run_preprocessing.py",
+                "--input", RAW_CSV_PATH,
+                "--output", PROCESSED_CSV_PATH,
+                "--output-mappings", MAPPINGS_PATH,
+            ]
+            
+            log_file.write("Iniciando script python run_preprocessing.py...\n")
+            log_file.flush()
+            
+            process = subprocess.Popen(
+                cmd,
+                cwd=Path(__file__).parent.parent.parent.parent,
+                stdout=log_file,
+                stderr=log_file,
+                text=True,
             )
-
-        cmd = [
-            sys.executable,
-            "scripts/run_preprocessing.py",
-            "--input", RAW_CSV_PATH,
-            "--output", PROCESSED_CSV_PATH,
-            "--output-mappings", MAPPINGS_PATH,
-        ]
-        
-        result = subprocess.run(
-            cmd,
-            cwd=Path(__file__).parent.parent.parent.parent,
-            capture_output=True,
-            text=True,
-        )
-        
-        if result.returncode != 0:
-            raise Exception(f"Preprocessing failed: {result.stderr}")
+            
+            process.wait()
+            
+            if process.returncode != 0:
+                raise Exception(f"Preprocessing script failed with exit code {process.returncode}")
         
         # Read the first 10 rows and mappings for response
         df = pd.read_csv(PROCESSED_CSV_PATH)
@@ -116,6 +132,11 @@ def _run_preprocessing_job(job_id: str) -> None:
         })
     except Exception as exc:
         logger.exception("Preprocessing job %s failed", job_id)
+        try:
+            with open(log_path, "a", encoding="utf-8") as log_file:
+                log_file.write(f"\n❌ ERRO NO PIPELINE:\n{str(exc)}\n")
+        except Exception:
+            pass
         set_job_failed(job_id, str(exc))
 
 
@@ -264,3 +285,22 @@ def get_pipeline_job(job_id: str):
         "result": job["result"],
         "error": job["error"],
     }
+
+
+@router.get("/jobs/{job_id}/logs")
+def get_pipeline_job_logs(job_id: str):
+    """Retorna os logs em tempo real de um job de pipeline."""
+    job = get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Job não encontrado: {job_id}")
+    
+    log_path = Path(f"/tmp/preprocessing_{job_id}.log")
+    if not log_path.exists():
+        return {"job_id": job_id, "logs": ""}
+    
+    try:
+        with open(log_path, "r", encoding="utf-8") as f:
+            logs = f.read()
+        return {"job_id": job_id, "logs": logs}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Erro ao ler logs: {exc}")

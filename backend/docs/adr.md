@@ -403,3 +403,33 @@ O algoritmo genético roda em segundo plano e pode levar vários minutos para co
 - Os jobs de tuning do pipeline principal (`/pipeline/tune`) foram migrados de subprocessos isolados para chamadas diretas através do `tuning_service`, permitindo o compartilhamento de contexto de execução e gravação de snapshots em tempo real.
 - Para evitar a lentidão de processamento do GA em datasets muito grandes (1.5M+ linhas), implementou-se amostragem estratificada (`sample_size=50_000`) como padrão no `tuning_service`.
 
+---
+
+## ADR-015 — Logs de Pré-processamento via Arquivo Local e Polling REST
+
+**Data**: 2026-07  
+**Status**: Aceito
+
+### Contexto
+O pipeline de pré-processamento executa como um subprocesso em segundo plano e pode levar de alguns segundos a minutos. No cenário original, a tela de pré-processamento no Streamlit "congelava" enquanto aguardava de forma síncrona a conclusão do job. Desejava-se retornar o status de inicialização imediatamente, exibir logs detalhados do progresso e atualizar a interface automaticamente ao finalizar.
+
+### Alternativas Consideradas
+1. **Streaming via WebSockets / SSE**: Transmitir logs em tempo real por fluxo contínuo.
+   - *Contra*: O modelo de execução do Streamlit é puramente síncrono e baseado em execuções de cima para baixo. Integrar WebSockets/SSE adiciona grande complexidade no controle de estado do frontend.
+2. **Armazenamento de Logs em Memória (Job Store)**: Capturar a saída do processo e salvá-la em uma variável em memória.
+   - *Contra*: Ingestão de logs em variáveis pode consumir memória excessiva e corre o risco de perda de informações em restarts de container ou crashs de rotina.
+3. **Escrita em Arquivo Temporário Local + Polling REST**: Redirecionar `stdout`/`stderr` do subprocesso diretamente para um arquivo local (`/tmp/preprocessing_{job_id}.log`) e expor uma rota GET na API do backend para retornar o conteúdo do arquivo. O frontend faz polling reativo consultando esse arquivo.
+
+### Decisão
+**Escrita em Arquivo Temporário Local + Polling REST** (opção 3):
+- Abstração simples e robusta, suportada nativamente pelo sistema operacional.
+- O backend inicia o pré-processamento via `subprocess.Popen` em uma `BackgroundTask`, liberando a resposta HTTP inicial imediatamente.
+- Todo o output do script de pré-processamento é escrito no arquivo `/tmp/preprocessing_{job_id}.log`.
+- O endpoint `/pipeline/jobs/{job_id}/logs` retorna o conteúdo desse arquivo em tempo real.
+- O frontend faz o polling de forma reativa a cada 2 segundos, renderizando os logs no console da página de forma não-bloqueante e atualizando a interface quando o status do job for `"completed"` ou `"failed"`.
+
+### Consequências
+- A tela do pré-processamento não congela mais e mostra feedback instantâneo da execução.
+- O arquivo de log permanece disponível para consulta mesmo após a conclusão do processamento.
+- Sem necessidade de dependências complexas de streaming bidirecional no Streamlit.
+
