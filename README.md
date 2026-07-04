@@ -198,6 +198,7 @@ Para desenvolvimento local, consulte as instruções detalhadas em:
 | `POST` | `/pipeline/predict` | Gera predições (requer tune concluído) |
 | `GET` | `/pipeline/status` | Estado atual do pipeline |
 | `GET` | `/pipeline/jobs/{id}` | Status e resultado de um job do pipeline |
+| `GET` | `/pipeline/jobs/{id}/logs` | Retorna logs em tempo real do pré-processamento |
 | `GET` | `/tuning/datasets` | Lista CSVs disponíveis |
 | `POST` | `/tuning/run` | Executa GA Co-Evolutivo (modo legado) |
 | `GET` | `/tuning/jobs/{id}` | Status de job assíncrono (tuning) |

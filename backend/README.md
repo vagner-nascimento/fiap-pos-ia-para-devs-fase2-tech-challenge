@@ -183,6 +183,7 @@ Endpoints principais:
 | `POST` | `/pipeline/predict` | Gera predições (requer tune concluído) |
 | `GET` | `/pipeline/status` | Estado atual do pipeline |
 | `GET` | `/pipeline/jobs/{id}` | Status e resultado de um job do pipeline |
+| `GET` | `/pipeline/jobs/{id}/logs` | Retorna logs em tempo real do pré-processamento |
 | `GET` | `/tuning/datasets` | Lista CSVs em `data/processed/` |
 | `POST` | `/tuning/run` | Executa GA Co-Evolutivo (modo legado. Aceita parâmetro opcional `sample_size`) |
 | `GET` | `/tuning/jobs/{id}` | Status de job assíncrono (tuning) |
