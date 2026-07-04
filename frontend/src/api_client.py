@@ -123,6 +123,21 @@ class PipelineClient:
             data = self._handle_response(client.post("/pipeline/preprocess"))
         return self._poll_job(self.base_url, data["job_id"])
 
+    def start_preprocessing_async(self) -> str:
+        """
+        Inicia o pré-processamento via /pipeline/preprocess e retorna o job_id imediatamente.
+        """
+        with httpx.Client(base_url=self.base_url, timeout=30.0) as client:
+            data = self._handle_response(client.post("/pipeline/preprocess"))
+        return data["job_id"]
+
+    def get_job_logs(self, job_id: str) -> dict:
+        """
+        Busca os logs do job de pré-processamento.
+        """
+        with httpx.Client(base_url=self.base_url, timeout=10.0) as client:
+            return self._handle_response(client.get(f"/pipeline/jobs/{job_id}/logs"))
+
     def run_tuning(self, **params) -> dict:
         with httpx.Client(base_url=self.base_url, timeout=self.timeout) as client:
             data = self._handle_response(client.post("/pipeline/tune", json=params))
