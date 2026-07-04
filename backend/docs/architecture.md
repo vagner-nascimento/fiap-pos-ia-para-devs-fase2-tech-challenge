@@ -248,28 +248,24 @@ A rota `src/api/routes/pipeline.py` expõe um pipeline orquestrado em 3 etapas c
 | `POST` | `/pipeline/predict` | `tune` concluído | Gera `predictions.csv` com o melhor modelo |
 | `GET` | `/pipeline/status` | — | Estado atual de cada etapa do pipeline |
 | `GET` | `/pipeline/jobs/{id}` | — | Status e resultado de um job |
+| `GET` | `/pipeline/jobs/{id}/logs` | — | Logs de execução em tempo real do pré-processamento |
 | `GET` | `/tuning/jobs/{id}/generations` | — | Endpoint incremental de snapshots de gerações (polling em tempo real) |
 
 ### Padrão de Job Assíncrono com Monitoramento em Tempo Real
 
-1. O frontend inicia o tuning:
+1. O frontend inicia o tuning ou o pré-processamento:
    ```
-   POST /pipeline/tune (assíncrono)
+   POST /pipeline/preprocess ou POST /pipeline/tune (assíncrono)
      → retorna { "job_id": "uuid" } imediatamente
    ```
 
-2. Enquanto o job de tuning executa no backend:
-   - A cada geração concluída no loop de `GeneticAlgorithm.run()`, um snapshot é persistido em `/tmp/ag_job_{job_id}_generations.jsonl`.
-   - O frontend realiza chamadas periódicas (polling reativo via `st.rerun()`):
-     ```
-     GET /tuning/jobs/{job_id}/generations?since=N
-       → retorna apenas novos snapshots desde a geração N e status atual do job
-     ```
-   - O dashboard Streamlit é atualizado de forma incremental na tela, atualizando gráficos Plotly, cartões de métricas e tabelas de parâmetros.
+2. Enquanto o job executa no backend:
+   - **Tuning (GA):** A cada geração concluída no loop de `GeneticAlgorithm.run()`, um snapshot é persistido em `/tmp/ag_job_{job_id}_generations.jsonl`. O frontend faz polling reativo em `GET /tuning/jobs/{job_id}/generations?since=N` e renderiza gráficos e métricas de forma incremental.
+   - **Pré-processamento:** O script Python `scripts/run_preprocessing.py` é iniciado como um processo em background via `subprocess.Popen` com redirecionamento de `stdout`/`stderr` para `/tmp/preprocessing_{job_id}.log`. O frontend lê esses logs incrementalmente via `GET /pipeline/jobs/{job_id}/logs` e os apresenta no console da interface.
 
 3. Quando o job conclui:
-   - O endpoint de gerações retorna o status `"completed"` ou `"failed"`.
-   - O frontend interrompe o ciclo de polling e renderiza o estado final estático de sucesso ou erro.
+   - Os endpoints de monitoramento retornam o status `"completed"` ou `"failed"`.
+   - O frontend interrompe o ciclo de polling e exibe o estado final (dados limpos, estatísticas ou descrição do erro).
 
 Para evitar problemas de memória e timeouts, a execução do pré-processamento e de predições é delegada a subprocessos CLI Python (`scripts/run_*.py`), enquanto a etapa de tuning é executada diretamente pelo `tuning_service` (permitindo monitoramento em tempo real do progresso).
 
