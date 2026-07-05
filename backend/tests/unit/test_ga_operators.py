@@ -6,9 +6,18 @@ Cobre:
     - crossover_rf / crossover_knn: tipos preservados, params válidos
     - mutate_rf / mutate_knn: tipos preservados, params dentro do range
     - Todos os níveis de aggressiveness
+
+Reforços adicionados (plano-implementacao-testes-ga.md):
+    - test_indpb_half_swaps_approximately_half (RF e KNN): valida que indpb=0.5
+      produz ~50% de troca de genes em média ao longo de repetições.
+    - TestMutateRFAggressiveness / TestMutateKNNAggressiveness: valida que
+      'high' produz deltas médios maiores que 'medium', que são maiores que
+      'low' (ADR-008 promete ±10%/±30%/±60% do range).
 """
 
 import pytest
+import random as _random
+import statistics
 from src.models.individuo import (
     RF_HYPERPARAM_SPACE,
     KNN_HYPERPARAM_SPACE,
@@ -133,6 +142,30 @@ class TestCrossoverRF:
         assert c1.hyperparams == ind2.hyperparams
         assert c2.hyperparams == ind1.hyperparams
 
+    def test_indpb_half_swaps_approximately_half(self):
+        """indpb=0.5 → ~50% dos genes RF trocados em média ao longo de repetições.
+
+        Valida o comportamento estatístico do cxUniform adaptado para dicts
+        (ADR-003): cada gene tem 50% de chance de ser trocado independentemente.
+        Com N=200 repetições, a taxa média deve convergir para [0.3, 0.7].
+        """
+        _random.seed(42)
+        ind1_hp = {"n_estimators": 10, "max_depth": 3,
+                   "min_samples_split": 2, "min_samples_leaf": 1, "criterion": "gini"}
+        ind2_hp = {"n_estimators": 100, "max_depth": 10,
+                   "min_samples_split": 5, "min_samples_leaf": 3, "criterion": "entropy"}
+        keys = list(ind1_hp.keys())
+        n_genes = len(keys)
+        swap_counts = []
+        for _ in range(200):
+            c1, _ = crossover_rf(IndividuoRF(ind1_hp), IndividuoRF(ind2_hp), indpb=0.5)
+            swaps = sum(1 for k in keys if c1.hyperparams[k] != ind1_hp[k])
+            swap_counts.append(swaps)
+        avg_swap_rate = sum(swap_counts) / (len(swap_counts) * n_genes)
+        assert 0.3 <= avg_swap_rate <= 0.7, (
+            f"Taxa de swap RF com indpb=0.5 foi {avg_swap_rate:.2f}, esperado entre 0.3 e 0.7"
+        )
+
 
 # ---------------------------------------------------------------------------
 # Crossover KNN
@@ -166,6 +199,29 @@ class TestCrossoverKNN:
         c1, c2 = crossover_knn(ind1, ind2, indpb=1.0)
         assert c1.hyperparams == ind2.hyperparams
         assert c2.hyperparams == ind1.hyperparams
+
+    def test_indpb_half_swaps_approximately_half(self):
+        """indpb=0.5 → ~50% dos genes KNN trocados em média ao longo de repetições.
+
+        Análogo ao teste RF: valida o comportamento estatístico do cxUniform
+        adaptado para dicts KNN (ADR-003).
+        """
+        _random.seed(42)
+        ind1_hp = {"n_neighbors": 3, "weights": "uniform",
+                   "metric": "euclidean", "algorithm": "auto"}
+        ind2_hp = {"n_neighbors": 15, "weights": "distance",
+                   "metric": "manhattan", "algorithm": "kd_tree"}
+        keys = list(ind1_hp.keys())
+        n_genes = len(keys)
+        swap_counts = []
+        for _ in range(200):
+            c1, _ = crossover_knn(IndividuoKNN(ind1_hp), IndividuoKNN(ind2_hp), indpb=0.5)
+            swaps = sum(1 for k in keys if c1.hyperparams[k] != ind1_hp[k])
+            swap_counts.append(swaps)
+        avg_swap_rate = sum(swap_counts) / (len(swap_counts) * n_genes)
+        assert 0.3 <= avg_swap_rate <= 0.7, (
+            f"Taxa de swap KNN com indpb=0.5 foi {avg_swap_rate:.2f}, esperado entre 0.3 e 0.7"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -228,3 +284,71 @@ class TestMutateKNN:
         original_hp = dict(ind.hyperparams)
         mutate_knn(ind, "high")
         assert ind.hyperparams == original_hp
+
+
+# ---------------------------------------------------------------------------
+# Magnitude de mutação RF por nível de agressividade (ADR-008)
+# ---------------------------------------------------------------------------
+
+class TestMutateRFAggressiveness:
+    """Valida que os 3 níveis de aggressiveness produzem magnitudes de mutação
+    distintas e ordenadas (high >= medium >= low) para n_estimators RF.
+
+    ADR-008 define: low=±10%, medium=±30%, high=±60% do range.
+    Com N=100 amostras e seed fixa, a ordenação deve ser consistente.
+    """
+
+    def _avg_delta_rf(self, aggressiveness: str, n: int = 100) -> float:
+        """Retorna delta médio absoluto em n_estimators para o nível dado."""
+        _random.seed(42)
+        base = IndividuoRF({"n_estimators": 100, "max_depth": 5,
+                             "min_samples_split": 5, "min_samples_leaf": 2,
+                             "criterion": "gini"})
+        deltas = []
+        for _ in range(n):
+            (mutated,) = mutate_rf(base, aggressiveness)
+            deltas.append(abs(mutated.hyperparams["n_estimators"] - base.hyperparams["n_estimators"]))
+        return statistics.mean(deltas)
+
+    def test_aggressiveness_ordering_n_estimators(self):
+        """Verifica que high >= medium >= low em delta médio de n_estimators."""
+        delta_low = self._avg_delta_rf("low")
+        delta_medium = self._avg_delta_rf("medium")
+        delta_high = self._avg_delta_rf("high")
+        assert delta_high >= delta_medium >= delta_low, (
+            f"Ordenação RF violada: low={delta_low:.2f}, "
+            f"medium={delta_medium:.2f}, high={delta_high:.2f}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Magnitude de mutação KNN por nível de agressividade (ADR-008)
+# ---------------------------------------------------------------------------
+
+class TestMutateKNNAggressiveness:
+    """Valida que os 3 níveis de aggressiveness produzem magnitudes de mutação
+    distintas e ordenadas (high >= medium >= low) para n_neighbors KNN.
+
+    ADR-008 define: low=±10%, medium=±30%, high=±60% do range.
+    """
+
+    def _avg_delta_knn(self, aggressiveness: str, n: int = 100) -> float:
+        """Retorna delta médio absoluto em n_neighbors para o nível dado."""
+        _random.seed(42)
+        base = IndividuoKNN({"n_neighbors": 15, "weights": "uniform",
+                              "metric": "euclidean", "algorithm": "auto"})
+        deltas = []
+        for _ in range(n):
+            (mutated,) = mutate_knn(base, aggressiveness)
+            deltas.append(abs(mutated.hyperparams["n_neighbors"] - base.hyperparams["n_neighbors"]))
+        return statistics.mean(deltas)
+
+    def test_aggressiveness_ordering_n_neighbors(self):
+        """Verifica que high >= medium >= low em delta médio de n_neighbors."""
+        delta_low = self._avg_delta_knn("low")
+        delta_medium = self._avg_delta_knn("medium")
+        delta_high = self._avg_delta_knn("high")
+        assert delta_high >= delta_medium >= delta_low, (
+            f"Ordenação KNN violada: low={delta_low:.2f}, "
+            f"medium={delta_medium:.2f}, high={delta_high:.2f}"
+        )
