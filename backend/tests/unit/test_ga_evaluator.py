@@ -3,10 +3,18 @@ Testes unitários da função de avaliação de fitness (ga_evaluator.py).
 
 Usa mock data simples (50 samples, 4 features, 3 classes) para validar
 que evaluate() retorna tupla válida e que fitness_score() calcula corretamente.
+
+Reforços adicionados (plano-implementacao-testes-ga.md):
+    - test_evaluate_returns_zero_on_failure_real_exception: usa unittest.mock
+      para forçar exceção real no build_model(), garantindo que o bloco except
+      em evaluate() seja realmente exercitado (não apenas o error_score do sklearn).
+    - test_evaluate_uses_k_folds_correctly: verifica que k_folds é propagado
+      corretamente para cross_val_score via mock.
 """
 
 import numpy as np
 import pytest
+from unittest.mock import patch, MagicMock
 from sklearn.datasets import make_classification
 
 from src.models.ga_evaluator import evaluate, fitness_score
@@ -106,7 +114,7 @@ class TestEvaluate:
         assert f1 > 0.0
 
     def test_evaluate_returns_zero_on_failure(self, mock_data):
-        """Indivíduo com max_depth=0 (inválido) deve retornar (0.0, 0.0) sem exception."""
+        """Indivíduo com max_depth=0 (inválido) deve retornar sem exception."""
         X, y = mock_data
         # Forçamos um hiperparâmetro inválido para testar o fallback
         ind = IndividuoRF({
@@ -120,6 +128,44 @@ class TestEvaluate:
         # Deve retornar sem lançar exceção (0.0 ou valor válido)
         assert isinstance(result, tuple)
         assert len(result) == 2
+
+    def test_evaluate_returns_zero_on_failure_real_exception(self, mock_data):
+        """Garante que o fallback (0.0, 0.0) é acionado quando build_model() falha.
+
+        O sklearn captura erros internamente via error_score=0.0 em cross_val_score,
+        então usar max_depth=0 não aciona o bloco except de evaluate().
+        Aqui usamos mock para forçar uma exceção real no pipeline.fit(),
+        garantindo que o path de exceção em evaluate() seja realmente exercitado.
+        """
+        X, y = mock_data
+        ind = create_random_rf()
+        bad_pipeline = MagicMock()
+        bad_pipeline.fit.side_effect = RuntimeError("modelo quebrado intencionalmente")
+        with patch.object(ind, "build_model", return_value=bad_pipeline):
+            result = evaluate(ind, X, y, k_folds=3)
+        assert result == (0.0, 0.0), f"Esperado (0.0, 0.0), obteve {result}"
+        assert ind.fitness_values == (0.0, 0.0), "fitness_values não foi setado para (0.0, 0.0)"
+
+    def test_evaluate_uses_k_folds_correctly(self, mock_data):
+        """Verifica que evaluate() propaga k_folds corretamente para cross_val_score.
+
+        Garante que alterar k_folds no evaluate() afeta de fato o número de folds
+        usado internamente, e não é ignorado silenciosamente.
+        """
+        X, y = mock_data
+        ind = create_random_rf()
+        mock_scores = np.array([0.8, 0.75, 0.82, 0.79, 0.81])
+        with patch("src.models.ga_evaluator.cross_val_score", return_value=mock_scores) as mock_cv:
+            evaluate(ind, X, y, k_folds=5)
+        # Verifica que cross_val_score foi chamado com cv=5
+        calls = mock_cv.call_args_list
+        assert len(calls) >= 1, "cross_val_score não foi chamado"
+        # Pelo menos uma das chamadas deve ter cv=5
+        cv_values = [
+            call.kwargs.get("cv") or (call.args[3] if len(call.args) > 3 else None)
+            for call in calls
+        ]
+        assert 5 in cv_values, f"k_folds=5 não foi passado para cross_val_score; cv recebidos: {cv_values}"
 
 
 # ---------------------------------------------------------------------------
