@@ -221,3 +221,9 @@ __marimo__/
 # Pastas de arquivos de dados (somente na raiz do projeto)
 /data/raw/estado_nutricional_sao_paulo.csv
 /data/processed/
+
+# Arquivos gerados pelo backend
+/models/artifacts/*.json
+/models/artifacts/*.csv
+/models/logs/*.json
+/models/logs/*.csv
