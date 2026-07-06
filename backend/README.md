@@ -197,18 +197,28 @@ Endpoints principais:
 O painel visual está em `../frontend/`. Consulte [../frontend/README.md](../frontend/README.md).
 
 ### 5. Testes Automatizados
-Para garantir que toda a lógica de negócio e os agentes do LangChain estão funcionando:
+
+A suíte cobre **74 testes** no total, validando o comportamento correto (não apenas "não quebra") do GA Co-Evolutivo, operadores genéticos e evaluator.
 
 ```bash
-# Todos os testes (60 no total)
+# Todos os testes (74 no total)
 uv run pytest
 
-# Apenas unitários (rápidos)
+# Apenas unitários — rápidos (~42s)
 uv run pytest tests/unit/ -v
 
-# Apenas integração (GA co-evolutivo end-to-end)
-uv run pytest tests/integration/ -v
+# Apenas integração — GA co-evolutivo end-to-end (~14min)
+uv run pytest tests/integration/test_ga_optimizer.py -v
 ```
+
+Cobertura por módulo:
+
+| Arquivo | Testes | O que valida |
+|---|---|---|
+| `tests/unit/test_ga_operators.py` | 26 | Crossover (indpb=0/0.5/1.0), mutação (magnitude por nível), ranges válidos |
+| `tests/unit/test_ga_evaluator.py` | 12 | Fitness, fallback de exceção real (mock), propagação de k_folds |
+| `tests/integration/test_ga_optimizer.py` | 21 | Elitismo (monotonia), elitismo estrutural, torneio, convergência, reprodutibilidade completa |
+| `tests/unit/test_llm_agent.py` | 15 | Agente ReAct e ferramentas |
 
 ---
 
@@ -241,8 +251,12 @@ uv run pytest tests/integration/ -v
 │   ├── run_tuning.py       # CLI do GA Co-Evolutivo
 │   └── run_predictions.py  # Gera predições usando o modelo treinado
 └── tests/
-    ├── unit/               # 44 testes (operadores + evaluator)
-    └── integration/        # 16 testes (GA end-to-end)
+    ├── unit/               # 53 testes (operadores, evaluator, agente LLM)
+    │   ├── test_ga_operators.py    # 26 testes: crossover (0/0.5/1.0), mutação por magnitude
+    │   ├── test_ga_evaluator.py    # 12 testes: fitness, fallback mock, k_folds
+    │   └── test_llm_agent.py       # 15 testes: agente ReAct e ferramentas
+    └── integration/        # 21 testes (GA end-to-end)
+        └── test_ga_optimizer.py    # elitismo/monotonia, torneio, estrutural, reprodutibilidade
 ```
 
 Para uma visão detalhada da arquitetura técnica e do comportamento do Agente ReAct, consulte o documento [docs/architecture.md](docs/architecture.md).

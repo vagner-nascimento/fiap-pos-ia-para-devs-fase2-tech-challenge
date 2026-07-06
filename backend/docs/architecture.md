@@ -77,11 +77,31 @@ project-root/
 │   ├── adr.md              # Architecture Decision Records (decisões de design)
 │   └── plan-fluxo2-training-and-tunning.md # Plano de implementação do GA
 │
-└── tests/                  # Suíte de testes automatizados
+└── tests/                  # Suíte de testes automatizados (74 testes)
     ├── __init__.py
-    ├── unit/               # Testes unitários (operadores, evaluator, agente LLM)
-    └── integration/        # Testes de integração (GA optimizer end-to-end)
+    ├── unit/               # Testes unitários (53 testes)
+    │   ├── test_ga_operators.py    # 26: crossover (indpb=0/0.5/1.0), mutação por magnitude, ranges
+    │   ├── test_ga_evaluator.py    # 12: fitness, fallback real (mock), propagação k_folds
+    │   └── test_llm_agent.py       # 15: inicialização e ferramentas do agente ReAct
+    └── integration/        # Testes de integração (21 testes)
+        └── test_ga_optimizer.py    # GA Co-Evolutivo end-to-end: elitismo/monotonia,
+                                     #   elitismo estrutural, torneio, convergência, reprodutibilidade
 ```
+
+### Estratégia de Testes
+
+A suíte valida **comportamento correto** (não apenas "não quebra"), organizada em duas camadas:
+
+**Testes unitários** (`tests/unit/`) — rápidos, sem k-Fold CV completo:
+- **Operadores genéticos**: valida que `indpb=0.5` produz ~50% de swap estatístico (ADR-003); ordenação de magnitude `high >= medium >= low` para RF (`n_estimators`) e KNN (`n_neighbors`) (ADR-008)
+- **Evaluator**: fallback `(0.0, 0.0)` via `unittest.mock` (força exceção real em `build_model()`); propagação correta de `k_folds` para `cross_val_score`
+
+**Testes de integração** (`tests/integration/`) — GA Co-Evolutivo end-to-end com dados sintéticos (100 amostras, k=3):
+- **Elitismo** (ADR-009): `global_best_f1` é monotônica não-decrescente com `elitism=True`
+- **Elitismo estrutural mínimo** (ADR-004): RF e KNN com `count >= 1` em todas as gerações
+- **Seleção por torneio**: indivíduo com fitness 0.9 vence >50% dos torneios vs. fitness 0.1
+- **Convergência**: ao parar por `"convergence"`, as últimas gerações exibem plateau real
+- **Reprodutibilidade completa**: mesma seed produz mesmos `hyperparams` e `fitness_values`
 
 ---
 

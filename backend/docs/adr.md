@@ -82,6 +82,8 @@ for key in dict1:
 - `indpb=1.0` → troca total de parâmetros (verificado em testes)
 - `indpb=0.5` → default — cada gene tem 50% de chance de ser trocado
 
+> **Validação:** `TestCrossoverRF.test_indpb_half_swaps_approximately_half` e `TestCrossoverKNN.test_indpb_half_swaps_approximately_half` confirmam taxa média de swap ~0.49–0.51 em 200 repetições com seed fixa.
+
 ---
 
 ## ADR-004 — Populações Separadas com Competição Global (Co-Evolução)
@@ -111,6 +113,8 @@ Precisamos otimizar hiperparâmetros de dois tipos de modelo (RF e KNN). As opç
 - A proporção RF/KNN na população pode variar a cada geração (dinâmica emergente)
 - **Elitismo estrutural mínimo**: garantia de ao menos 1 sobrevivente por tipo (evita extinção prematura)
 - Saída unificada: `results["overall_best"]` é o vencedor global
+
+> **Validação:** `TestStructuralElitism.test_min_one_survivor_per_type_every_generation` confirma `count >= 1` para RF e KNN em todas as gerações de um run com 6 gerações. `TestGlobalTournamentSelection.test_higher_fitness_wins_more_often` confirma pressão seletiva real: indivíduo com fitness 0.9 vence >25 de 50 torneios vs. fitness 0.1.
 
 ---
 
@@ -218,6 +222,8 @@ Parâmetros categóricos (ex: `criterion`, `weights`) usam apenas `mutation_rate
 - Perturbação gaussiana em parâmetros numéricos: `_mutate_int()` com sigma proporcional ao range
 - Original nunca é modificado (cópia profunda antes de mutar) — validado por `test_does_not_mutate_original`
 
+> **Validação:** `TestMutateRFAggressiveness.test_aggressiveness_ordering_n_estimators` e `TestMutateKNNAggressiveness.test_aggressiveness_ordering_n_neighbors` confirmam a ordenação `high >= medium >= low` em delta médio absoluto com N=100 amostras e seed fixa.
+
 ---
 
 ## ADR-009 — Elitismo Opcional com Elitismo Estrutural Mínimo
@@ -243,6 +249,10 @@ Elitismo garante que o melhor indivíduo nunca é perdido, mas pode reduzir dive
 - `--no-elitism` no CLI ativa modo exploratório puro
 - O elitismo estrutural mínimo é uma salvaguarda implícita — não exposto como parâmetro
 - `test_with_elitism_enabled` e `test_with_elitism_disabled` validam ambos os cenários
+
+> **Validação aprofundada (2026-07-05):**
+> - `TestElitism.test_elitism_true_never_regresses`: confirma que `global_best_f1` é monotônica não-decrescente ao longo de 6 gerações com `elitism=True`. Este teste detecta bugs na lógica de reinserção do elite que os testes anteriores não pegariam.
+> - `TestCoEvolution.test_reproducibility_full_hyperparams`: confirma que o GA é completamente determinístico (mesma seed → mesmos `hyperparams` e `fitness_values`), incluindo o `KFold` interno ao `cross_val_score`.
 
 ---
 

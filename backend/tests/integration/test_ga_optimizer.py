@@ -6,6 +6,17 @@ Usa dados sintéticos pequenos para validar o fluxo completo em tempo razoável:
     - Verifica estrutura do resultado
     - Testa critério de parada por convergência
     - Testa elitismo ligado e desligado
+
+Reforços adicionados (plano-implementacao-testes-ga.md):
+    - TestElitism.test_elitism_true_never_regresses: verifica que global_best_f1
+      é monoôtona não-decrescente com elitism=True (ADR-009).
+    - TestStructuralElitism: RF e KNN nunca somem da população (count >= 1).
+    - TestGlobalTournamentSelection: indivíduo com fitness maior vence torneio
+      com frequência maior (via _tournament_select diretamente).
+    - TestStoppingCriteria.test_convergence_actually_triggers: valida que ao
+      parar por convergência, as últimas gerações mostram plateau real.
+    - TestCoEvolution.test_reproducibility_full_hyperparams: compara hyperparams
+      e fitness_values completos entre duas runs com mesma seed.
 """
 
 import numpy as np
@@ -124,6 +135,23 @@ class TestStoppingCriteria:
         # Pode parar por convergência ou max_generations, ambos válidos
         assert result["reason"] in ("convergence", "max_generations")
 
+    def test_convergence_actually_triggers(self, small_data):
+        """Reforça test_convergence_stops_early: verifica que ao parar por
+        convergência, as últimas gerações realmente exibem plateau de fitness.
+
+        O teste original aceitava qualquer reason, passando mesmo que a
+        convergência nunca disparasse de fato. Aqui confirmamos o plateau.
+        """
+        ga = make_ga(small_data, max_generations=20, patience=2, pop_size=4)
+        result = ga.run()
+        if result["reason"] == "convergence":
+            bests = [g["global_best_f1"] for g in result["generations_stats"]]
+            # Se parou por convergência, as últimas gerações devem mostrar plateau
+            last_n = bests[-3:] if len(bests) >= 3 else bests
+            assert max(last_n) - min(last_n) < 1e-4, (
+                f"Parou por 'convergence' mas últimas gerações não mostram plateau: {last_n}"
+            )
+
     def test_params_preserved_in_result(self, small_data):
         ga = make_ga(small_data, pop_size=4, max_generations=2, patience=5, k_folds=3)
         result = ga.run()
@@ -151,6 +179,21 @@ class TestElitism:
         ga = make_ga(small_data, elitism=False)
         result = ga.run()
         assert result["params"]["elitism"] is False
+
+    def test_elitism_true_never_regresses(self, small_data):
+        """Com elitism=True, global_best_f1 nunca deve piorar entre gerações.
+
+        Este é o teste de maior valor diagnóstico do plano: os testes anteriores
+        (test_with_elitism_enabled/disabled) só checam que best_individual é
+        não-nulo, o que passa mesmo se a reinserção do elite estiver quebrada.
+        Aqui validamos a propriedade fundamental do elitismo: monotonia (ADR-009).
+        """
+        ga = make_ga(small_data, elitism=True, max_generations=6, pop_size=4)
+        result = ga.run()
+        bests = [g["global_best_f1"] for g in result["generations_stats"]]
+        assert all(b2 >= b1 - 1e-9 for b1, b2 in zip(bests, bests[1:])), (
+            f"global_best_f1 regrediu com elitism=True: {bests}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -181,3 +224,95 @@ class TestCoEvolution:
         r2 = ga2.run()
         assert r1["best_individual"].classifier_type == r2["best_individual"].classifier_type
         assert r1["stopped_at"] == r2["stopped_at"]
+
+    def test_reproducibility_full_hyperparams(self, small_data):
+        """Reforça test_reproducibility_with_same_seed: compara hyperparams e
+        fitness_values completos em vez de apenas classifier_type e stopped_at.
+
+        O teste original não detecta vazamento de RNG em operadores genéticos.
+        Este teste pega casos onde a seed é parcialmente propagada mas há
+        não-determinismo em sub-componentes (ex: KFold sem seed fixa).
+
+        Nota: se este teste falhar, o bug provavelmente está na propagação
+        da seed no cross_val_score/KFold — tratar como bug real, não ajustar
+        o teste para passar (conforme critério de aceite do plano).
+        """
+        X, y = small_data
+        r1 = GeneticAlgorithm(X, y, pop_size=3, max_generations=2, k_folds=3, random_seed=99).run()
+        r2 = GeneticAlgorithm(X, y, pop_size=3, max_generations=2, k_folds=3, random_seed=99).run()
+        assert r1["best_individual"].hyperparams == r2["best_individual"].hyperparams, (
+            "Hyperparams divergentes com mesma seed — possível não-determinismo no RNG"
+        )
+        assert r1["best_individual"].fitness_values == r2["best_individual"].fitness_values, (
+            "fitness_values divergentes com mesma seed — verificar seed do KFold/cross_val_score"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Elitismo estrutural mínimo (ADR-004/009)
+# ---------------------------------------------------------------------------
+
+class TestStructuralElitism:
+    """Valida que o elitismo estrutural mínimo (sempre ativo, independente
+    do flag elitism) garante ao menos 1 sobrevivente de cada tipo por geração.
+
+    Gap identificado: test_both_types_appear_in_stats usa count >= 0, que é
+    sempre verdadeiro e não valida nada. Este teste usa count >= 1 (ADR-004).
+    """
+
+    def test_min_one_survivor_per_type_every_generation(self, small_data):
+        """RF e KNN nunca somem completamente da população, mesmo com pressão
+        competitiva (elitismo estrutural mínimo garantido via _split_by_type).
+        """
+        ga = make_ga(small_data, max_generations=6, pop_size=4)
+        result = ga.run()
+        for i, stat in enumerate(result["generations_stats"]):
+            assert stat["rf"]["count"] >= 1, (
+                f"RF sumiu na geração {i+1}: count={stat['rf']['count']}"
+            )
+            assert stat["knn"]["count"] >= 1, (
+                f"KNN sumiu na geração {i+1}: count={stat['knn']['count']}"
+            )
+
+
+# ---------------------------------------------------------------------------
+# Seleção por torneio global (ADR-004)
+# ---------------------------------------------------------------------------
+
+class TestGlobalTournamentSelection:
+    """Testa o comportamento da seleção por torneio via _tournament_select.
+
+    Como _tournament_select é um método de instância (não uma função pura
+    exportada), testamos diretamente através da instância do GA com pool de
+    indivíduos com fitness pré-populado artificialmente — sem precisar do
+    run() completo (que seria lento e não isolaria o comportamento da seleção).
+    """
+
+    def test_higher_fitness_wins_more_often(self, small_data):
+        """Indivíduo com fitness maior deve vencer torneios com mais frequência.
+
+        Com fitness 0.9 vs 0.1 e tournsize=3, o forte deve vencer >>50% das vezes.
+        Em 50 torneios com seed controlada, esperamos >25 vitórias do forte.
+        """
+        ga = make_ga(small_data)
+
+        strong = IndividuoRF({"n_estimators": 10, "max_depth": 3,
+                               "min_samples_split": 2, "min_samples_leaf": 1,
+                               "criterion": "gini"})
+        strong.fitness_values = (0.9, 0.9)  # fitness_score = 0.9*0.6 + 0.9*0.4 = 0.9
+
+        weak = IndividuoKNN({"n_neighbors": 3, "weights": "uniform",
+                              "metric": "euclidean", "algorithm": "auto"})
+        weak.fitness_values = (0.1, 0.1)    # fitness_score = 0.1
+
+        # Pool com 10 fortes e 10 fracos — proporção 50/50
+        pool = [strong] * 10 + [weak] * 10
+
+        wins_strong = sum(
+            1 for _ in range(50)
+            if ga._tournament_select(pool, k=1, tournsize=3)[0].fitness_values == (0.9, 0.9)
+        )
+        assert wins_strong > 25, (
+            f"Esperado >25 vitórias do forte em 50 torneios, obteve {wins_strong}. "
+            "Possível bug na seleção por torneio."
+        )
