@@ -225,7 +225,6 @@ __marimo__/
 # Arquivos gerados pelo backend
 /models/artifacts/*.json
 /models/artifacts/*.csv
-# TODO nao esta sendo removido do git /models/artifacts/*.joblib
 /models/artifacts/*.joblib
 /models/logs/*.json
 /models/logs/*.csv
