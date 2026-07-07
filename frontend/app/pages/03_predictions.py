@@ -81,13 +81,13 @@ if st.session_state.predictions_result:
     result = st.session_state.predictions_result
     
     if result["status"] == "completed":
-        st.subheader("📁 Arquivos Gerados")
+        st.subheader("📁 Arquivo Gerado")
         
         result_data = result.get("result", {})
-        predictions_path = result_data.get("predictions_path", "N/A")
+        best_predictions = result_data.get("best_model_predictions", "N/A")
         
         st.markdown(f"""
-        - **CSV de Predições:** `{predictions_path}`
+        - **Melhor Modelo Tunado:** `{best_predictions}`
         """)
         
         st.success("As predições foram geradas e salvas com sucesso. Você pode agora criar uma sessão com o agente LLM para analisar os resultados.")

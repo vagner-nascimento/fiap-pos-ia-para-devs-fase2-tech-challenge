@@ -59,7 +59,8 @@ RAW_CSV_PATH = "data/raw/estado_nutricional_sao_paulo.csv"
 PROCESSED_CSV_PATH = "data/processed/estado_nutricional_clean.csv"
 MAPPINGS_PATH = "models/artifacts/mappings.json"
 MODEL_PATH = "models/artifacts/best_model.joblib"
-PREDICTIONS_PATH = "models/artifacts/predictions.csv"
+ORIGINALS_DIR = "models/originals"
+ARTIFACTS_DIR = "models/artifacts"
 
 
 def _run_preprocessing_job(job_id: str) -> None:
@@ -169,15 +170,15 @@ def _run_tuning_job(job_id: str, params: TuningRequest) -> None:
 
 
 def _run_predictions_job(job_id: str) -> None:
-    """Executa o script de predictions em background."""
+    """Executa o script de predictions em background usando todos os modelos."""
     set_job_running(job_id)
     try:
         cmd = [
             sys.executable,
-            "scripts/run_predictions.py",
+            "scripts/run_predictions_all.py",
             "--input", PROCESSED_CSV_PATH,
-            "--model", MODEL_PATH,
-            "--output", PREDICTIONS_PATH,
+            "--output-dir", ARTIFACTS_DIR,
+            "--best-model", MODEL_PATH,
             "--target", "TARGET",
         ]
         
@@ -194,7 +195,7 @@ def _run_predictions_job(job_id: str) -> None:
         set_predictions_completed()
         
         set_job_completed(job_id, {
-            "predictions_path": PREDICTIONS_PATH,
+            "best_model_predictions": f"{ARTIFACTS_DIR}/best_model_predictions.csv",
         })
     except Exception as exc:
         logger.exception("Predictions job %s failed", job_id)

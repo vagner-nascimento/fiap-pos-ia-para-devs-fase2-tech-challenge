@@ -151,7 +151,7 @@ with st.sidebar:
             "sample_size": sample_size,
         }
         try:
-            with st.spinner("Iniciando job de tuning..."):
+            with st.spinner("Iniciando job de tuning e treinando modelos originais..."):
                 job_id = client.start_pipeline_tuning_async(**params)
                 st.session_state.tuning_job_id = job_id
                 st.session_state.tuning_job_running = True
@@ -185,6 +185,14 @@ st.markdown(
     "Acompanhe a evolução do **Algoritmo Genético Co-Evolutivo** em tempo real. "
     "Configure os parâmetros na barra lateral e clique em **🚀 Iniciar Tuning**."
 )
+
+st.info(
+    "ℹ️ Durante o tuning, os modelos originais do TC Fase 1 também serão treinados:\n"
+    "- RandomForest (n_estimators=100, max_depth=20, random_state=28)\n"
+    "- KNeighborsClassifier (n_neighbors=10)\n\n"
+    "Esses modelos são salvos em `models/originals/` e podem ser usados para comparação com o modelo tunado."
+)
+
 st.divider()
 
 
@@ -453,8 +461,9 @@ elif st.session_state.generations:
         st.error("❌ O job falhou. Verifique os logs do backend.")
     else:
         st.success(
-            f"Otimização concluída com {len(st.session_state.generations)} gerações. "
-            "Você pode agora executar as predições."
+            f"✅ Otimização concluída com {len(st.session_state.generations)} gerações.\n"
+            f"✅ Modelos originais treinados e salvos em models/originals/.\n"
+            f"Você pode agora executar as predições para comparar os modelos."
         )
 
 else:

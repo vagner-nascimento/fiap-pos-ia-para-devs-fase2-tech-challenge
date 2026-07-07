@@ -6,12 +6,17 @@ import logging
 import os
 from pathlib import Path
 
+import joblib
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
-from src.models.ga_persistence import _individuo_to_dict, load_ga_history, save_ga_results
+from src.models.ga_persistence import _individuo_to_dict, load_ga_history, save_best_model, save_ga_results
 from src.models.ga_snapshot import cleanup_snapshot_file, read_generation_snapshots
 from src.models.genetic_algorithm import GeneticAlgorithm
 
@@ -19,6 +24,7 @@ load_dotenv()
 
 DATA_PATH = Path(os.getenv("DATA_PATH", "./data"))
 LOG_PATH = Path(os.getenv("LOG_PATH", "./models/logs"))
+ORIGINALS_PATH = Path(os.getenv("ORIGINALS_PATH", "./models/originals"))
 PROCESSED_DIR = DATA_PATH / "processed"
 
 
@@ -109,6 +115,48 @@ def serialize_ga_results(results: dict) -> dict:
     }
 
 
+def train_original_models(X: np.ndarray, y: np.ndarray, originals_dir: Path) -> None:
+    """
+    Treina os modelos originais do TC Fase 1 e salva em models/originals.
+
+    Treina RandomForestClassifier e KNeighborsClassifier com os hiperparâmetros
+    originais especificados, usando os mesmos dados que serão usados para o tuning.
+
+    Args:
+        X: Features para treino.
+        y: Target para treino.
+        originals_dir: Diretório onde salvar os modelos originais.
+    """
+    logger = logging.getLogger(__name__)
+    originals_dir.mkdir(parents=True, exist_ok=True)
+
+    logger.info("Treinando modelo original RandomForest...")
+    rf_pipeline = Pipeline([
+        ("scaler", StandardScaler()),
+        ("classifier", RandomForestClassifier(
+            n_estimators=100,
+            max_depth=20,
+            n_jobs=-1,
+            verbose=1,
+            random_state=28
+        ))
+    ])
+    rf_pipeline.fit(X, y)
+    rf_path = originals_dir / "original_rf.joblib"
+    joblib.dump(rf_pipeline, rf_path)
+    logger.info("Modelo original RandomForest salvo em: %s", rf_path)
+
+    logger.info("Treinando modelo original KNeighborsClassifier...")
+    knn_pipeline = Pipeline([
+        ("scaler", StandardScaler()),
+        ("classifier", KNeighborsClassifier(n_neighbors=10))
+    ])
+    knn_pipeline.fit(X, y)
+    knn_path = originals_dir / "original_knn.joblib"
+    joblib.dump(knn_pipeline, knn_path)
+    logger.info("Modelo original KNeighborsClassifier salvo em: %s", knn_path)
+
+
 def run_tuning(
     *,
     dataset: str,
@@ -138,6 +186,9 @@ def run_tuning(
     if sample_size > 0:
         X, y = stratified_sample(X, y, n_samples=sample_size, random_seed=random_seed)
 
+    # Treina os modelos originais do TC Fase 1
+    train_original_models(X, y, ORIGINALS_PATH)
+
     # Limpa snapshots de run anterior para este job_id
     if job_id is not None:
         cleanup_snapshot_file(job_id)
@@ -161,6 +212,12 @@ def run_tuning(
 
     if save_logs:
         save_ga_results(results, str(LOG_PATH))
+
+    # Salvar o melhor modelo treinado no dataset completo
+    best_individual = results.get("best_individual")
+    if best_individual:
+        model_path = Path("models/artifacts/best_model.joblib")
+        save_best_model(best_individual, X, y, str(model_path))
 
     return serialize_ga_results(results)
 
