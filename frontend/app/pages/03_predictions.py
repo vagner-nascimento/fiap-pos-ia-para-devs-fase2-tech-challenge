@@ -81,13 +81,17 @@ if st.session_state.predictions_result:
     result = st.session_state.predictions_result
     
     if result["status"] == "completed":
-        st.subheader("📁 Arquivo Gerado")
+        st.subheader("📁 Arquivos Gerados")
         
         result_data = result.get("result", {})
         best_predictions = result_data.get("best_model_predictions", "N/A")
+        original_knn_predictions = result_data.get("original_knn_predictions", "N/A")
+        original_rf_predictions = result_data.get("original_rf_predictions", "N/A")
         
         st.markdown(f"""
         - **Melhor Modelo Tunado:** `{best_predictions}`
+        - **Modelo Original KNN:** `{original_knn_predictions}`
+        - **Modelo Original RF:** `{original_rf_predictions}`
         """)
         
         st.success("As predições foram geradas e salvas com sucesso. Você pode agora criar uma sessão com o agente LLM para analisar os resultados.")

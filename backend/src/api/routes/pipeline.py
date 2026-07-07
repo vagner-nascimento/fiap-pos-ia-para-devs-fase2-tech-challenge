@@ -196,6 +196,8 @@ def _run_predictions_job(job_id: str) -> None:
         
         set_job_completed(job_id, {
             "best_model_predictions": f"{ARTIFACTS_DIR}/best_model_predictions.csv",
+            "original_knn_predictions": f"{ARTIFACTS_DIR}/original_knn_predictions.csv",
+            "original_rf_predictions": f"{ARTIFACTS_DIR}/original_rf_predictions.csv",
         })
     except Exception as exc:
         logger.exception("Predictions job %s failed", job_id)

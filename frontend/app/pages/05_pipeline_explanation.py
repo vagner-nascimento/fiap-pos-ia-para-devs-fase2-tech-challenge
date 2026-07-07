@@ -114,19 +114,22 @@ st.markdown(
     """
     **Endpoint:** `POST /pipeline/predict`
     
-    **O que faz:** Usa o modelo treinado para gerar predições sobre o dataset processado.
+    **O que faz:** Usa o modelo treinado e os modelos originais para gerar predições sobre o dataset processado.
     
     **Parâmetros fixos:**
     - `--input data/processed/estado_nutricional_clean.csv`
-    - `--model models/artifacts/best_model.joblib`
-    - `--output models/artifacts/predictions.csv`
+    - `--best-model models/artifacts/best_model.joblib`
+    - `--output-dir models/artifacts`
     - `--target TARGET`
     
     **Retorno:** `{"job_id": "...", "status": "pending"}`
     
     **Como verificar status:** `GET /pipeline/jobs/{job_id}`
     
-    **Resultado quando concluído:** CSV com predições salvo em `models/artifacts/predictions.csv`
+    **Resultado quando concluído:** 3 CSVs com predições salvos em:
+    - `models/artifacts/best_model_predictions.csv` (melhor modelo tunado)
+    - `models/artifacts/original_knn_predictions.csv` (modelo KNN original)
+    - `models/artifacts/original_rf_predictions.csv` (modelo RF original)
     
     ⚠️ **Validação:** Só pode ser chamado após o tuning ser concluído.
     """
@@ -144,7 +147,7 @@ st.markdown(
     gerados pelo pipeline.
     
     **Parâmetros:** Não recebe parâmetros (usa caminhos fixos):
-    - CSV: `models/artifacts/predictions.csv`
+    - CSV: `models/artifacts/best_model_predictions.csv`
     - Mappings: `models/artifacts/mappings.json`
     
     **Retorno:**

@@ -66,7 +66,7 @@ async def create_llm_session_from_files():
                    "Chame POST /pipeline/predict primeiro."
         )
     
-    csv_path = "models/artifacts/predictions.csv"
+    csv_path = "models/artifacts/best_model_predictions.csv"
     mappings_path = "models/artifacts/mappings.json"
     
     try:
