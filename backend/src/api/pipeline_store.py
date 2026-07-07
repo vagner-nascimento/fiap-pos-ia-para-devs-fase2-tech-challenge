@@ -9,6 +9,7 @@ _pipeline_state: dict[str, Any] = {
     "preprocessing_completed": False,
     "tuning_completed": False,
     "predictions_completed": False,
+    "comparison_completed": False,
 }
 _lock = threading.Lock()
 
@@ -19,6 +20,7 @@ def reset_pipeline() -> None:
         _pipeline_state["preprocessing_completed"] = False
         _pipeline_state["tuning_completed"] = False
         _pipeline_state["predictions_completed"] = False
+        _pipeline_state["comparison_completed"] = False
 
 
 def set_preprocessing_completed() -> None:
@@ -61,3 +63,15 @@ def check_predictions_completed() -> bool:
     """Verifica se predictions foi concluído."""
     with _lock:
         return _pipeline_state["predictions_completed"]
+
+
+def set_comparison_completed() -> None:
+    """Marca comparison como concluído."""
+    with _lock:
+        _pipeline_state["comparison_completed"] = True
+
+
+def check_comparison_completed() -> bool:
+    """Verifica se comparison foi concluído."""
+    with _lock:
+        return _pipeline_state["comparison_completed"]

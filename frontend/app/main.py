@@ -111,6 +111,19 @@ with col4:
 
 st.divider()
 
+col5, col6 = st.columns(2)
+
+with col5:
+    st.markdown("""
+    ### 5️⃣ 🔍 Comparação de Modelos
+    
+    Compara a assertividade dos modelos de predição com métricas e gráficos.
+    
+    **Pré-requisito:** Predições concluídas
+    """)
+
+st.divider()
+
 st.markdown("""
 ### 📋 Documentação
 

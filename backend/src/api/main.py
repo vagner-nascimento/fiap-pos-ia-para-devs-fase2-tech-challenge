@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
-from src.api.routes import health, llm, pipeline, tuning
+from src.api.routes import health, llm, model_comparison, pipeline, tuning
 
 load_dotenv()
 
@@ -35,3 +37,9 @@ app.include_router(health.router)
 app.include_router(tuning.router)
 app.include_router(pipeline.router)
 app.include_router(llm.router)
+app.include_router(model_comparison.router)
+
+# Mount static files for reports directory
+reports_dir = Path("reports")
+if reports_dir.exists():
+    app.mount("/reports", StaticFiles(directory=str(reports_dir)), name="reports")

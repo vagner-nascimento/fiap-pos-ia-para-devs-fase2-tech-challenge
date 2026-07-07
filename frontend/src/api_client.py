@@ -237,3 +237,35 @@ class LLMClient:
     def create_session_from_files(self) -> dict:
         with httpx.Client(base_url=self.base_url, timeout=self.timeout) as client:
             return self._handle_response(client.post("/llm/session/from-files"))
+
+
+class ModelComparisonClient:
+    def __init__(self, base_url: str | None = None, timeout: float = 3600.0):
+        self.base_url = (base_url or os.getenv("BACKEND_URL", DEFAULT_BACKEND_URL)).rstrip("/")
+        self.timeout = timeout
+
+    def _handle_response(self, response: httpx.Response) -> Any:
+        if response.is_success:
+            return response.json()
+        detail = response.text
+        try:
+            detail = response.json().get("detail", detail)
+        except Exception:
+            pass
+        raise ApiError(str(detail), response.status_code)
+
+    def run_comparison(self) -> dict:
+        """Inicia o job de comparação de modelos em modo assíncrono."""
+        with httpx.Client(base_url=self.base_url, timeout=30.0) as client:
+            data = self._handle_response(client.post("/model-comparison/compare"))
+        return data
+
+    def get_job_status(self, job_id: str) -> dict:
+        """Retorna o status de um job de comparação."""
+        with httpx.Client(base_url=self.base_url, timeout=10.0) as client:
+            return self._handle_response(client.get(f"/model-comparison/jobs/{job_id}"))
+
+    def get_report(self) -> dict:
+        """Retorna o relatório de comparação mais recente."""
+        with httpx.Client(base_url=self.base_url, timeout=10.0) as client:
+            return self._handle_response(client.get("/model-comparison/report"))
