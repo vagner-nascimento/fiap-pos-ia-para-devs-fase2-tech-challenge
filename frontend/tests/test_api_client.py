@@ -434,3 +434,197 @@ class TestModelComparisonClient:
         result = client.get_report()
         
         assert "metrics" in result
+
+    @patch('src.api_client.httpx.Client')
+    def test_handle_response_json_decode_error(self, mock_client_class):
+        """Testa _handle_response quando JSON decode falha."""
+        mock_response = MagicMock()
+        mock_response.is_success = False
+        mock_response.status_code = 400
+        mock_response.text = "Bad Request Text"
+        mock_response.json.side_effect = ValueError("No JSON")
+        
+        client = TuningClient()
+        with pytest.raises(ApiError) as exc:
+            client._handle_response(mock_response)
+        assert exc.value.status_code == 400
+        assert str(exc.value) == "Bad Request Text"
+
+    @patch('src.api_client.httpx.Client')
+    def test_run_tuning_async_failed(self, mock_client_class):
+        """Testa execução de tuning em modo assíncrono com erro."""
+        post_response = MagicMock()
+        post_response.is_success = True
+        post_response.json.return_value = {"job_id": "job_123"}
+        
+        get_response_failed = MagicMock()
+        get_response_failed.is_success = True
+        get_response_failed.json.return_value = {
+            "status": "failed",
+            "error": "Generic error"
+        }
+        
+        mock_client_instance = MagicMock()
+        mock_client_instance.post.return_value = post_response
+        mock_client_instance.get.return_value = get_response_failed
+        mock_client_class.return_value.__enter__.return_value = mock_client_instance
+        
+        client = TuningClient()
+        with pytest.raises(ApiError) as exc:
+            client.run_tuning(async_mode=True, dataset="test.csv")
+        assert "Generic error" in str(exc.value)
+
+    @patch('src.api_client.httpx.Client')
+    def test_pipeline_run_tuning(self, mock_client_class):
+        """Testa execução de tuning no pipeline."""
+        post_response = MagicMock()
+        post_response.is_success = True
+        post_response.json.return_value = {"job_id": "job_123"}
+        
+        get_response_completed = MagicMock()
+        get_response_completed.is_success = True
+        get_response_completed.json.return_value = {
+            "status": "completed",
+            "result": {"best_model": "model.joblib"}
+        }
+        
+        mock_client_instance = MagicMock()
+        mock_client_instance.post.return_value = post_response
+        mock_client_instance.get.return_value = get_response_completed
+        mock_client_class.return_value.__enter__.return_value = mock_client_instance
+        
+        client = PipelineClient()
+        result = client.run_tuning(dataset="test.csv")
+        assert result["status"] == "completed"
+
+    @patch('src.api_client.httpx.Client')
+    def test_start_pipeline_tuning_async(self, mock_client_class):
+        """Testa início de tuning assíncrono do pipeline."""
+        mock_response = MagicMock()
+        mock_response.is_success = True
+        mock_response.json.return_value = {"job_id": "job_123"}
+        
+        mock_client_instance = MagicMock()
+        mock_client_instance.post.return_value = mock_response
+        mock_client_class.return_value.__enter__.return_value = mock_client_instance
+        
+        client = PipelineClient()
+        job_id = client.start_pipeline_tuning_async(dataset="test.csv")
+        assert job_id == "job_123"
+
+    @patch('src.api_client.httpx.Client')
+    def test_pipeline_get_generation_snapshots(self, mock_client_class):
+        """Testa busca de snapshots de gerações no pipeline."""
+        mock_response = MagicMock()
+        mock_response.is_success = True
+        mock_response.json.return_value = {"snapshots": []}
+        
+        mock_client_instance = MagicMock()
+        mock_client_instance.get.return_value = mock_response
+        mock_client_class.return_value.__enter__.return_value = mock_client_instance
+        
+        client = PipelineClient()
+        result = client.get_generation_snapshots("job_123", since=0)
+        assert result == {"snapshots": []}
+
+    @patch('src.api_client.httpx.Client')
+    def test_pipeline_get_job_status(self, mock_client_class):
+        """Testa busca de status de um job no pipeline."""
+        mock_response = MagicMock()
+        mock_response.is_success = True
+        mock_response.json.return_value = {"status": "running"}
+        
+        mock_client_instance = MagicMock()
+        mock_client_instance.get.return_value = mock_response
+        mock_client_class.return_value.__enter__.return_value = mock_client_instance
+        
+        client = PipelineClient()
+        result = client.get_job_status("job_123")
+        assert result["status"] == "running"
+
+    @patch('src.api_client.httpx.Client')
+    def test_pipeline_poll_job_failed(self, mock_client_class):
+        """Testa polling de job do pipeline que falha."""
+        get_response_failed = MagicMock()
+        get_response_failed.is_success = True
+        get_response_failed.json.return_value = {
+            "status": "failed",
+            "error": "Pipeline error"
+        }
+        
+        mock_client_instance = MagicMock()
+        mock_client_instance.get.return_value = get_response_failed
+        mock_client_class.return_value.__enter__.return_value = mock_client_instance
+        
+        client = PipelineClient()
+        with pytest.raises(ApiError) as exc:
+            client._poll_job(client.base_url, "job_123")
+        assert "Pipeline error" in str(exc.value)
+
+    @patch('src.api_client.httpx.Client')
+    def test_llm_client_handle_response_error(self, mock_client_class):
+        """Testa erro de resposta no LLMClient."""
+        mock_response = MagicMock()
+        mock_response.is_success = False
+        mock_response.status_code = 500
+        mock_response.text = "Error Text"
+        mock_response.json.side_effect = ValueError("No JSON")
+        
+        client = LLMClient()
+        with pytest.raises(ApiError) as exc:
+            client._handle_response(mock_response)
+        assert exc.value.status_code == 500
+        assert str(exc.value) == "Error Text"
+
+    @patch('src.api_client.httpx.Client')
+    def test_model_comparison_client_handle_response_error(self, mock_client_class):
+        """Testa erro de resposta no ModelComparisonClient."""
+        mock_response = MagicMock()
+        mock_response.is_success = False
+        mock_response.status_code = 500
+        mock_response.text = "Error Text"
+        mock_response.json.side_effect = ValueError("No JSON")
+        
+        client = ModelComparisonClient()
+        with pytest.raises(ApiError) as exc:
+            client._handle_response(mock_response)
+        assert exc.value.status_code == 500
+        assert str(exc.value) == "Error Text"
+
+    def test_pipeline_client_handle_response_error(self):
+        """Testa erro de resposta no PipelineClient."""
+        mock_response = MagicMock()
+        mock_response.is_success = False
+        mock_response.status_code = 500
+        mock_response.text = "Error Text"
+        mock_response.json.side_effect = ValueError("No JSON")
+        
+        client = PipelineClient()
+        with pytest.raises(ApiError) as exc:
+            client._handle_response(mock_response)
+        assert exc.value.status_code == 500
+        assert str(exc.value) == "Error Text"
+
+    @patch('src.api_client.httpx.Client')
+    @patch('src.api_client.time.sleep')
+    def test_pipeline_poll_job_pending_then_completed(self, mock_sleep, mock_client_class):
+        """Testa polling de job do pipeline com estado intermediário."""
+        get_response_pending = MagicMock()
+        get_response_pending.is_success = True
+        get_response_pending.json.return_value = {"status": "pending"}
+        
+        get_response_completed = MagicMock()
+        get_response_completed.is_success = True
+        get_response_completed.json.return_value = {
+            "status": "completed",
+            "result": {}
+        }
+        
+        mock_client_instance = MagicMock()
+        mock_client_instance.get.side_effect = [get_response_pending, get_response_completed]
+        mock_client_class.return_value.__enter__.return_value = mock_client_instance
+        
+        client = PipelineClient()
+        result = client._poll_job(client.base_url, "job_123")
+        assert result["status"] == "completed"
+        mock_sleep.assert_called_once()

@@ -198,27 +198,23 @@ O painel visual está em `../frontend/`. Consulte [../frontend/README.md](../fro
 
 ### 5. Testes Automatizados
 
-A suíte cobre **74 testes** no total, validando o comportamento correto (não apenas "não quebra") do GA Co-Evolutivo, operadores genéticos e evaluator.
+A suíte cobre **302 testes** no total, validando de forma abrangente e otimizada o comportamento correto do GA Co-Evolutivo, operadores genéticos, rotas da API REST, agente de LLM, pipelines e evaluators.
+
+Graças às otimizações de mocking dos classificadores nas integrações, a suíte completa executa em menos de **20 segundos**.
 
 ```bash
-# Todos os testes (74 no total)
+# Executa todos os testes (302 testes)
 uv run pytest
 
-# Apenas unitários — rápidos (~42s)
-uv run pytest tests/unit/ -v
-
-# Apenas integração — GA co-evolutivo end-to-end (~14min)
-uv run pytest tests/integration/test_ga_optimizer.py -v
+# Executa testes com cobertura de código detalhada e gera relatório HTML (htmlcov/)
+uv run pytest --cov=src --cov-report=term-missing --cov-report=html
 ```
 
-Cobertura por módulo:
-
-| Arquivo | Testes | O que valida |
-|---|---|---|
-| `tests/unit/test_ga_operators.py` | 26 | Crossover (indpb=0/0.5/1.0), mutação (magnitude por nível), ranges válidos |
-| `tests/unit/test_ga_evaluator.py` | 12 | Fitness, fallback de exceção real (mock), propagação de k_folds |
-| `tests/integration/test_ga_optimizer.py` | 21 | Elitismo (monotonia), elitismo estrutural, torneio, convergência, reprodutibilidade completa |
-| `tests/unit/test_llm_agent.py` | 15 | Agente ReAct e ferramentas |
+Principais áreas validadas:
+* **Tuning Genético (`test_ga_optimizer.py`)**: Valida elitismo, convergência de plateaus, monotonia do fitness e reprodutibilidade de seeds.
+* **Operadores Genéticos (`test_ga_operators.py`)**: Valida crossover, taxas de mutação por agressividade e validade dos ranges.
+* **Rotas do Pipeline REST (`test_api_pipeline.py`)**: Valida logs, jobs assíncronos e orquestração do pipeline de Machine Learning.
+* **Agente LLM (`test_llm_agent.py`)**: Valida fluxo de raciocínio ReAct e chamadas de ferramentas.
 
 ---
 

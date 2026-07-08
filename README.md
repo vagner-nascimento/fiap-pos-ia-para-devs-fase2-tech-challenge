@@ -163,22 +163,28 @@ docker-compose restart backend
 docker-compose restart frontend
 ```
 
-### Script de Reinicialização
+### 🔄 Script de Reinicialização dos Containers
 
-Para reiniciar todos os containers (parar, reconstruir e iniciar em background), use o script `restar_containers.sh`:
+Para reiniciar todos os containers com facilidade (parar, reconstruir as imagens e iniciá-los novamente em background), você pode utilizar os scripts de automação inclusos na raiz do projeto:
 
+#### No Linux / macOS:
 ```bash
-# No Linux/Mac (torne o script executável primeiro)
-chmod +x restar_containers.sh
-./restar_containers.sh
+# Torne o script executável (apenas a primeira vez)
+chmod +x restart_containers.sh
 
-# No Windows (via Git Bash ou WSL)
-bash restar_containers.sh
+# Execute o script
+./restart_containers.sh
 ```
 
-Este script executa:
-1. `docker compose down` - Para todos os containers
-2. `docker compose up --build -d` - Reconstrói as imagens e inicia em background
+#### No Windows (PowerShell ou Prompt de Comando - CMD):
+```cmd
+# Basta executar o arquivo em lote (.bat)
+restart_containers.bat
+```
+
+Este script automatiza o seguinte fluxo:
+1. `docker compose down` - Para e remove todos os containers do projeto
+2. `docker compose up --build -d` - Reconstrói as imagens e inicia os containers em background
 
 ### Execução Local (Sem Docker)
 
@@ -213,15 +219,22 @@ Documentação interativa completa em: http://localhost:8000/docs
 
 ## 🧪 Testes
 
-Para executar os testes automatizados:
+Para executar os testes automatizados e gerar relatórios de cobertura:
 
 ```bash
-# Via Docker
-docker-compose exec backend uv run pytest
-
-# Localmente (no diretório backend)
+# Executar todos os testes no backend
 cd backend
 uv run pytest
+
+# Executar com relatório de cobertura HTML no backend
+uv run pytest --cov=src --cov-report=term-missing --cov-report=html
+
+# Executar todos os testes no frontend
+cd ../frontend
+uv run pytest
+
+# Executar com relatório de cobertura HTML no frontend
+uv run pytest --cov=src --cov-report=term-missing --cov-report=html
 ```
 
 ---
