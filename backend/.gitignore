@@ -229,3 +229,5 @@ __marimo__/
 /models/logs/*.json
 /models/logs/*.csv
 /models/originals/*.joblib
+/reports/*/*
+/reports/*.json

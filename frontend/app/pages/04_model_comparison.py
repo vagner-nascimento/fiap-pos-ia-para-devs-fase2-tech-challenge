@@ -139,7 +139,8 @@ if st.session_state.comparison_result and st.session_state.comparison_result["st
     plots = result["plots"]
     
     # Construct full URLs for plot images
-    backend_url = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
+    # Use localhost for browser-accessible URLs (st.image runs in browser, not container)
+    backend_url = "http://localhost:8000"
     
     col1, col2 = st.columns(2)
     
