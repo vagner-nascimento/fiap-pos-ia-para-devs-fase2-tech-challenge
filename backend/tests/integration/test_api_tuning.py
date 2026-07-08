@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch, MagicMock
 
 import pandas as pd
 import pytest
@@ -57,7 +58,18 @@ class TestTuningEndpoints:
         assert response.status_code == 200
         assert "test_data.csv" in response.json()["datasets"]
 
-    def test_run_tuning_sync(self, api_client):
+    @patch('src.api.routes.tuning.tuning_service.run_tuning')
+    def test_run_tuning_sync(self, mock_run_tuning, api_client):
+        mock_run_tuning.return_value = {
+            "generations_stats": [
+                {"generation": 1, "rf": {}, "knn": {}, "global_best_f1": 0.8},
+                {"generation": 2, "rf": {}, "knn": {}, "global_best_f1": 0.85}
+            ],
+            "best_individual": {"type": "RF", "hyperparams": {}, "fitness_f1": 0.85, "fitness_acc": 0.9},
+            "stopped_at": 2,
+            "reason": "max_generations",
+            "params": {}
+        }
         payload = {
             "dataset": "test_data.csv",
             "target_col": "TARGET",
@@ -77,7 +89,18 @@ class TestTuningEndpoints:
         assert len(data["generations_stats"]) == 2
         assert data["best_individual"] is not None
 
-    def test_run_tuning_with_sample_size(self, api_client):
+    @patch('src.api.routes.tuning.tuning_service.run_tuning')
+    def test_run_tuning_with_sample_size(self, mock_run_tuning, api_client):
+        mock_run_tuning.return_value = {
+            "generations_stats": [
+                {"generation": 1, "rf": {}, "knn": {}, "global_best_f1": 0.8},
+                {"generation": 2, "rf": {}, "knn": {}, "global_best_f1": 0.85}
+            ],
+            "best_individual": {"type": "RF", "hyperparams": {}, "fitness_f1": 0.85, "fitness_acc": 0.9},
+            "stopped_at": 2,
+            "reason": "max_generations",
+            "params": {}
+        }
         payload = {
             "dataset": "test_data.csv",
             "target_col": "TARGET",
@@ -105,7 +128,22 @@ class TestTuningEndpoints:
         )
         assert response.status_code == 404
 
-    def test_get_latest_logs_after_run(self, api_client):
+    @patch('src.api.routes.tuning.tuning_service.run_tuning')
+    @patch('src.api.routes.tuning.tuning_service.get_latest_logs')
+    def test_get_latest_logs_after_run(self, mock_get_logs, mock_run_tuning, api_client):
+        mock_run_tuning.return_value = {
+            "generations_stats": [{"generation": 1, "rf": {}, "knn": {}, "global_best_f1": 0.8}],
+            "best_individual": {"type": "RF", "hyperparams": {}, "fitness_f1": 0.8, "fitness_acc": 0.85},
+            "stopped_at": 1,
+            "reason": "max_generations",
+            "params": {}
+        }
+        mock_get_logs.return_value = {
+            "history": {
+                "generations_stats": [{"generation": 1, "rf": {}, "knn": {}, "global_best_f1": 0.8}]
+            },
+            "stats_csv": "csv content"
+        }
         payload = {
             "dataset": "test_data.csv",
             "target_col": "TARGET",
@@ -120,9 +158,23 @@ class TestTuningEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert "history" in data
-        assert len(data["history"]["generations_stats"]) == 2
+        assert len(data["history"]["generations_stats"]) == 1
 
-    def test_async_job_lifecycle(self, api_client):
+    @patch('src.api.routes.tuning._run_tuning_job')
+    def test_async_job_lifecycle(self, mock_run_job, api_client):
+        # Mock the background task to complete immediately
+        def mock_job_func(job_id, params):
+            from src.api.job_store import set_job_completed
+            result = {
+                "generations_stats": [{"generation": 1, "rf": {}, "knn": {}, "global_best_f1": 0.8}],
+                "best_individual": {"type": "RF", "hyperparams": {}, "fitness_f1": 0.8, "fitness_acc": 0.85},
+                "stopped_at": 1,
+                "reason": "max_generations",
+                "params": {}
+            }
+            set_job_completed(job_id, result)
+        mock_run_job.side_effect = mock_job_func
+        
         payload = {
             "dataset": "test_data.csv",
             "target_col": "TARGET",

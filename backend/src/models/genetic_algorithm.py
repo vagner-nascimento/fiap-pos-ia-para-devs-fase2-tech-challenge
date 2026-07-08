@@ -330,6 +330,8 @@ class GeneticAlgorithm:
                 - "params": parâmetros usados na execução
         """
         logger.info("Iniciando GA co-evolutivo...")
+        random.seed(self.random_seed)
+        np.random.seed(self.random_seed)
         pop_rf, pop_knn = self._init_populations()
 
         best_fitness_global: float = -float("inf")

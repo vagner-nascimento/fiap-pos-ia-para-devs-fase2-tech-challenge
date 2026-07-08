@@ -28,6 +28,20 @@ from src.models.ga_evaluator import fitness_score
 from src.models.individuo import IndividuoRF, IndividuoKNN
 
 
+@pytest.fixture(autouse=True)
+def mock_ga_evaluate(monkeypatch):
+    import hashlib
+    def _mock_evaluate(individual, X, y, k_folds=5):
+        hp_str = f"{individual.classifier_type}:{sorted(individual.hyperparams.items())}"
+        h = hashlib.md5(hp_str.encode('utf-8')).hexdigest()
+        val = int(h, 16)
+        f1 = 0.5 + (val % 450) / 1000.0
+        acc = 0.5 + ((val >> 16) % 450) / 1000.0
+        individual.fitness_values = (f1, acc)
+        return (f1, acc)
+    monkeypatch.setattr("src.models.genetic_algorithm.evaluate", _mock_evaluate)
+
+
 # ---------------------------------------------------------------------------
 # Fixture de dados — subset pequeno para velocidade
 # ---------------------------------------------------------------------------

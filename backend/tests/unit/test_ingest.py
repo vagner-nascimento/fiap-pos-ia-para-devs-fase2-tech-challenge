@@ -23,11 +23,21 @@ class TestExtractRarFile:
         mock_extract.assert_not_called()
 
     @patch('src.data.ingest.patoolib.extract_archive')
-    @patch('pathlib.Path.exists')
-    def test_extract_when_csv_not_exists(self, mock_exists, mock_extract):
+    @patch('src.data.ingest.Path')
+    def test_extract_when_csv_not_exists(self, mock_path, mock_extract):
         """Testa extração quando CSV não existe."""
         # RAR exists, CSV doesn't
-        mock_exists.side_effect = lambda path: "rar" in str(path)
+        mock_rar_file = MagicMock()
+        mock_rar_file.exists.return_value = True
+        mock_csv_file = MagicMock()
+        mock_csv_file.exists.return_value = False
+        
+        def path_side_effect(path_str):
+            if "rar" in path_str:
+                return mock_rar_file
+            return mock_csv_file
+        
+        mock_path.side_effect = path_side_effect
         
         extract_rar_file("test.rar", "test.csv")
         
@@ -42,10 +52,21 @@ class TestExtractRarFile:
             extract_rar_file("nonexistent.rar", "test.csv")
 
     @patch('src.data.ingest.patoolib.extract_archive')
-    @patch('pathlib.Path.exists')
-    def test_extract_error_handling(self, mock_exists, mock_extract):
+    @patch('src.data.ingest.Path')
+    def test_extract_error_handling(self, mock_path, mock_extract):
         """Testa tratamento de erro na extração."""
-        mock_exists.side_effect = lambda path: "rar" in str(path)
+        # RAR exists, CSV doesn't
+        mock_rar_file = MagicMock()
+        mock_rar_file.exists.return_value = True
+        mock_csv_file = MagicMock()
+        mock_csv_file.exists.return_value = False
+        
+        def path_side_effect(path_str):
+            if "rar" in path_str:
+                return mock_rar_file
+            return mock_csv_file
+        
+        mock_path.side_effect = path_side_effect
         mock_extract.side_effect = Exception("Erro de extração")
         
         with pytest.raises(Exception, match="Erro de extração"):

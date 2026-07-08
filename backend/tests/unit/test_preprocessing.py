@@ -131,6 +131,8 @@ class TestConsolidateNutritionalStatus:
         df = pd.DataFrame({
             "CRI. IMC X IDADE": ["Eutrofia"],
             "ADO. IMC X IDADE": [None],
+            "CO_ESTADO_NUTRI_ADULTO": [None],
+            "CO_ESTADO_NUTRI_IDOSO": [None],
         })
         original_cols = set(df.columns)
         
@@ -367,6 +369,9 @@ class TestRunPreprocessing:
         df = pd.DataFrame({
             "CO_ESTADO_NUTRI_IMC_SEMGEST": [None],
             "CRI. IMC X IDADE": ["Eutrofia"],
+            "ADO. IMC X IDADE": [None],
+            "CO_ESTADO_NUTRI_ADULTO": [None],
+            "CO_ESTADO_NUTRI_IDOSO": [None],
             "NU_PESO": ["70,5"],
         })
         

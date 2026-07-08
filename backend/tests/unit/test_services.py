@@ -89,7 +89,8 @@ class TestModelComparisonService:
 
     @patch('src.services.model_comparison_service.plt')
     @patch('src.services.model_comparison_service.PLOTS_DIR')
-    def test_generate_confusion_matrix_plot(self, mock_plots_dir, mock_plt):
+    @patch('src.services.model_comparison_service.sns')
+    def test_generate_confusion_matrix_plot(self, mock_sns, mock_plots_dir, mock_plt):
         """Testa geração de plot de matriz de confusão."""
         mock_plots_dir.__truediv__.return_value = "test_path.png"
         y_true = pd.Series([0, 1, 2])
@@ -253,9 +254,9 @@ class TestTuningService:
             assert serialized["reason"] == "convergence"
 
     @patch('src.services.tuning_service.joblib')
-    @patch('src.services.tuning_service.PIPELINE')
     @patch('src.services.tuning_service.ORIGINALS_PATH')
-    def test_train_original_models(self, mock_originals_dir, mock_pipeline, mock_joblib):
+    @patch('src.services.tuning_service.Pipeline')
+    def test_train_original_models(self, mock_pipeline, mock_originals_dir, mock_joblib):
         """Testa treinamento de modelos originais."""
         mock_originals_dir.mkdir = MagicMock()
         mock_pipeline_instance = MagicMock()

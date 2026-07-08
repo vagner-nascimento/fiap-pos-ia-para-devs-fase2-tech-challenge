@@ -37,7 +37,12 @@ class TestLogger:
     def test_setup_logger_with_file(self, tmp_path):
         """Testa configuração de logger com arquivo."""
         log_file = tmp_path / "test.log"
-        logger = setup_logger("test_logger", log_file=str(log_file))
+        logger_name = "test_logger_with_file"
+        logger = setup_logger(logger_name, log_file=str(log_file))
+        
+        # Clear existing handlers to avoid conflicts
+        logger.handlers.clear()
+        logger = setup_logger(logger_name, log_file=str(log_file))
         
         assert len(logger.handlers) == 2
 
@@ -50,7 +55,12 @@ class TestLogger:
     def test_setup_logger_custom_format(self):
         """Testa configuração de logger com formato customizado."""
         custom_format = "%(name)s - %(message)s"
-        logger = setup_logger("test_logger", format_string=custom_format)
+        logger_name = "test_logger_custom_format"
+        logger = setup_logger(logger_name, format_string=custom_format)
+        
+        # Clear existing handlers to avoid conflicts
+        logger.handlers.clear()
+        logger = setup_logger(logger_name, format_string=custom_format)
         
         assert logger.handlers[0].formatter._fmt == custom_format
 
@@ -279,7 +289,8 @@ class TestValidators:
         """Testa validação de dados nutricionais com colunas faltando."""
         df = pd.DataFrame({
             "NU_IDADE_ANO": [25, 30],
-            "NU_PESO": [70.0, 75.0]
+            "NU_PESO": [70.0, 75.0],
+            "ESTADO_NUTRI": ["Eutrofia", "Eutrofia"]
         })
         
         results = validate_nutritional_data(df)
