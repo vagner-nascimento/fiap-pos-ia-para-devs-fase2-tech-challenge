@@ -28,6 +28,13 @@ from pathlib import Path
 # Garante que o root do projeto está no path para imports relativos
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+# Evita UnicodeEncodeError no Windows ao printar emojis/caracteres UTF-8
+if sys.platform.startswith("win"):
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace")
+
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -191,7 +198,7 @@ def main() -> None:
         "",
         f"- **Data/hora:** {datetime.now().isoformat(timespec='seconds')}",
         f"- **Dataset:** `{csv_path}` ({len(df)} registros)",
-        f"- **Modelo:** definido em `LLM_MODEL` (padrão `gemini-2.5-flash`)",
+        f"- **Modelo:** definido em `LLM_MODEL` (padrão `gemini-3.5-flash`)",
         "",
         "> Este relatório é gerado automaticamente. Use-o em conjunto com a rubrica de",
         "> `experiments/llm_quality_eval.md` para atribuir as notas (1–5) por dimensão.",
