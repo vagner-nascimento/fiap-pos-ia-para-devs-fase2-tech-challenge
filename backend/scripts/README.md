@@ -59,6 +59,45 @@ python scripts/run_preprocessing.py \
     --format-output parquet
 ```
 
+### `generate_sample_predictions.py`
+
+Gera uma **amostra sintética** de dados SISVAN já com a coluna `Prediction`, apenas para
+demonstrar/reproduzir a avaliação do agente LLM (`run_llm_eval.py`) **sem** executar o pipeline
+completo (preprocess + tuning + predict).
+
+**Uso:**
+
+```bash
+python scripts/generate_sample_predictions.py
+```
+
+**Saída:**
+
+- `data/sample/sample_predictions.csv`
+- `data/sample/sample_mappings.json`
+
+> Não substitui os dados reais — use somente para validar o fluxo de avaliação.
+
+### `run_llm_eval.py`
+
+Executa a **avaliação de qualidade das interpretações do agente LLM** (Agente de Saúde Nutricional).
+Roda o conjunto de perguntas-teste, captura as respostas do agente ReAct e calcula valores de
+referência determinísticos (via pandas) para apoiar a pontuação da rubrica.
+
+**Uso:**
+
+```bash
+python scripts/run_llm_eval.py \
+    --csv models/artifacts/best_model_predictions.csv \
+    --mappings models/artifacts/mappings.json \
+    --output reports/llm_eval_run.md \
+    --json-output reports/llm_eval_run.json
+```
+
+**Pré-requisitos:** pipeline `predict` concluído (gera o CSV de predições) e `LLM_API_KEY`
+configurada no `.env`. O relatório gerado deve ser avaliado com a rubrica de
+`experiments/llm_quality_eval.md`.
+
 ### `run_tuning.py` (Futuro)
 
 Executará o algoritmo genético para otimização de hiperparâmetros.
