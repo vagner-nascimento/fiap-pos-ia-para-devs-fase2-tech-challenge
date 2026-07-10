@@ -243,6 +243,7 @@ uv run pytest --cov=src --cov-report=term-missing --cov-report=html
 
 - [Arquitetura Técnica](backend/docs/architecture.md) - Detalhes da arquitetura e fluxo do GA
 - [Architecture Decision Records](backend/docs/adr.md) - Decisões de design
+- [Avaliação da Qualidade do LLM](experiments/llm_quality_eval.md) - Rubrica, perguntas-teste e análise de falhas das interpretações do agente
 - [Backend README](backend/README.md) - Instruções detalhadas do backend
 - [Frontend README](frontend/README.md) - Instruções detalhadas do frontend
 

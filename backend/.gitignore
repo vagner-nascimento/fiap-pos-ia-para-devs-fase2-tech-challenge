@@ -231,3 +231,16 @@ __marimo__/
 /models/originals/*.joblib
 /reports/*/*
 /reports/*.json
+
+# Amostra sintética gerada para avaliação do LLM (scripts/generate_sample_predictions.py)
+/data/sample/
+# Relatório gerado pela avaliação do LLM (scripts/run_llm_eval.py)
+/reports/llm_eval_run.*
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Certificados / bundles locais (proxy corporativo)
+*.pem
+
