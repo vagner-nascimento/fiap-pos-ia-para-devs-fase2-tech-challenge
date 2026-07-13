@@ -1,5 +1,6 @@
 import os
 import json
+import logging
 import pandas as pd
 from typing import Dict, Any, Optional, List
 from pathlib import Path
@@ -7,10 +8,98 @@ from dotenv import load_dotenv
 
 # LangChain imports
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain.agents import create_react_agent, AgentExecutor
 from langchain.prompts import PromptTemplate
 from langchain.memory import ConversationBufferMemory
 from langchain.tools import Tool
+
+# Fallback e Rate Limit Exceptions — importadas com guard para evitar falha se os pacotes não estiverem instalados
+from openai import (
+    RateLimitError as OpenAIRateLimitError,
+    APIConnectionError as OpenAIConnectionError,
+    APITimeoutError as OpenAITimeoutError,
+    InternalServerError as OpenAIInternalServerError,
+    BadRequestError as OpenAIBadRequestError,
+)
+try:
+    from google.api_core.exceptions import GoogleAPICallError
+except ImportError:
+    GoogleAPICallError = None  # type: ignore[assignment,misc]
+
+from langchain_core.outputs import LLMResult
+from langchain_core.messages import BaseMessage
+
+# Tupla unificada de exceções que disparam transição de provider (rate limit, indisponibilidade ou rede)
+_FALLBACK_EXCEPTIONS: tuple = tuple(filter(None, [
+    OpenAIRateLimitError,
+    OpenAIConnectionError,
+    OpenAITimeoutError,
+    OpenAIInternalServerError,
+    GoogleAPICallError,
+]))
+
+# Logger deve ser declarado antes de PatchedChatOpenAI para evitar NameError no bloco de auto-recovery
+logger = logging.getLogger(__name__)
+
+class PatchedChatOpenAI(ChatOpenAI):
+    """
+    Subclasse de ChatOpenAI que remove o parâmetro 'stop' se configurado
+    por variáveis de ambiente, para evitar erros em modelos que não o suportam.
+
+    NOTA TÉCNICA: O LangChain ReAct Agent injeta 'stop' via _get_request_payload,
+    que é chamado internamente por _generate e _stream. Portanto, para remover
+    o parâmetro 'stop' do payload da API de forma efetiva, precisamos sobrescrever
+    _get_request_payload — não apenas _generate.
+
+    Fluxo de auto-recovery:
+    1. Na primeira chamada, a flag drop_stop=False. O stop passa normalmente.
+    2. A API rejeita com BadRequestError ('stop' not supported).
+    3. _generate intercepta o erro, ativa drop_stop=True e retenta.
+    4. A retentativa chama _get_request_payload que agora remove o stop.
+    5. Todas as chamadas futuras já omitem o stop via _get_request_payload.
+    """
+    drop_stop: bool = False
+
+    def _get_request_payload(
+        self,
+        input_: Any,
+        *,
+        stop: Optional[List[str]] = None,
+        **kwargs: Any,
+    ) -> dict:
+        """Sobrescreve o payload de requisição para remover 'stop' quando drop_stop=True."""
+        if self.drop_stop:
+            stop = None
+            kwargs.pop("stop", None)
+        return super()._get_request_payload(input_, stop=stop, **kwargs)
+
+    def _generate(
+        self,
+        messages: List[BaseMessage],
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[Any] = None,
+        **kwargs: Any,
+    ) -> LLMResult:
+        """Intercepta BadRequestError de 'stop' e retenta com drop_stop=True."""
+        if self.drop_stop:
+            stop = None
+            kwargs.pop("stop", None)
+        try:
+            return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+        except OpenAIBadRequestError as exc:
+            msg = str(exc).lower()
+            if "stop" in msg and ("parameter" in msg or "not supported" in msg or "unsupported" in msg):
+                logger.warning(
+                    "O modelo '%s' indicou que o parâmetro 'stop' não é suportado. "
+                    "Ativando auto-recovery (drop_stop=True) e retentando a chamada...",
+                    self.model_name,
+                )
+                self.drop_stop = True
+                kwargs.pop("stop", None)
+                return super()._generate(messages, stop=None, run_manager=run_manager, **kwargs)
+            raise exc
 
 # Local custom prompt template for classic ReAct Agent
 REACT_PROMPT_TEMPLATE = """Você é o Agente de Saúde Nutricional, um especialista em análise estatística de dados nutricionais e interpretação de predições de modelos de Aprendizado de Máquina (ML).
@@ -39,6 +128,9 @@ Final Answer: [sua resposta detalhada aqui em português]
 Histórico de Conversação:
 {chat_history}
 
+Mapeamentos de Colunas e Categorias na Base (Mapeamentos do Encoder):
+{mappings_context}
+
 Pergunta do Usuário: {input}
 Thought: {agent_scratchpad}"""
 
@@ -57,26 +149,8 @@ class NutritionalHealthAgent:
         # Carrega variáveis do arquivo .env
         load_dotenv()
 
-        # Configurações do LLM
-        api_key = os.getenv("LLM_API_KEY")
-        model_name = os.getenv("LLM_MODEL", "gemini-2.5-flash")
-        temperature_val = os.getenv("LLM_TEMPERATURE", "0.7")
-        
-        try:
-            temperature = float(temperature_val)
-        except (TypeError, ValueError):
-            temperature = 0.7
-
-        # Configura a chave do Google no environment para que o LangChain acesse
-        if api_key:
-            os.environ["GOOGLE_API_KEY"] = api_key
-
-        # Inicializa o modelo da Google
-        self.llm = ChatGoogleGenerativeAI(
-            model=model_name,
-            temperature=temperature,
-            google_api_key=api_key
-        )
+        # Inicializa o LLM com suporte a fallback multi-provider
+        self.llm = self._build_llm_with_fallbacks()
 
         self.raw_df = df.copy()
         self.mappings = mappings or {}
@@ -127,6 +201,147 @@ class NutritionalHealthAgent:
             mappings = json.load(f)
 
         return cls(df, mappings)
+
+    def _build_llm_provider(self, provider: str) -> BaseChatModel:
+        """
+        Instancia um único ChatModel a partir do nome do provedor,
+        lendo as variáveis de ambiente correspondentes.
+
+        Args:
+            provider (str): Nome do provedor ('gemini', 'openai', 'openrouter').
+
+        Returns:
+            BaseChatModel: Instância do modelo de linguagem.
+
+        Raises:
+            ValueError: Se a chave de API não estiver configurada ou o provedor for desconhecido.
+        """
+        provider = provider.strip().lower()
+
+        if provider == "gemini":
+            # Tenta GEMINI_API_KEY; retrocompatibilidade: cai para LLM_API_KEY
+            api_key = os.getenv("GEMINI_API_KEY") or os.getenv("LLM_API_KEY")
+            if not api_key:
+                raise ValueError(
+                    "Provedor 'gemini' requer GEMINI_API_KEY (ou LLM_API_KEY para retrocompatibilidade)."
+                )
+            model = os.getenv("GEMINI_MODEL") or os.getenv("LLM_MODEL", "gemini-2.5-flash")
+            temp_val = os.getenv("GEMINI_TEMPERATURE") or os.getenv("LLM_TEMPERATURE", "0.7")
+            # Expõe a chave como GOOGLE_API_KEY para que o LangChain acesse
+            os.environ["GOOGLE_API_KEY"] = api_key
+            return ChatGoogleGenerativeAI(
+                model=model,
+                temperature=float(temp_val),
+                google_api_key=api_key,
+                max_retries=1,
+            )
+
+        if provider == "openai":
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                raise ValueError("Provedor 'openai' requer OPENAI_API_KEY.")
+            model = os.getenv("OPENAI_MODEL", "gpt-4o")
+            temp_val = os.getenv("OPENAI_TEMPERATURE", "0.7")
+            drop_stop = os.getenv("OPENAI_DROP_STOP", "false").lower() == "true"
+            return PatchedChatOpenAI(
+                model=model,
+                temperature=float(temp_val),
+                api_key=api_key,
+                drop_stop=drop_stop,
+                max_retries=1,
+            )
+
+        if provider == "openrouter":
+            api_key = os.getenv("OPENROUTER_API_KEY")
+            if not api_key:
+                raise ValueError("Provedor 'openrouter' requer OPENROUTER_API_KEY.")
+            model = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free")
+            temp_val = os.getenv("OPENROUTER_TEMPERATURE", "0.7")
+            drop_stop = os.getenv("OPENROUTER_DROP_STOP", "false").lower() == "true"
+            return PatchedChatOpenAI(
+                model=model,
+                temperature=float(temp_val),
+                api_key=api_key,
+                base_url="https://openrouter.ai/api/v1",
+                drop_stop=drop_stop,
+                max_retries=1,
+            )
+
+        raise ValueError(f"Provedor desconhecido: '{provider}'. Use 'gemini', 'openai' ou 'openrouter'.")
+
+    def _build_llm_with_fallbacks(self) -> BaseChatModel:
+        """
+        Constrói a lista de provedores LLM disponíveis e retorna o primário.
+
+        Lê LLM_PROVIDER_ORDER do ambiente (ex: 'openai,gemini,openrouter').
+        Se não definido, usa ['gemini'] para retrocompatibilidade.
+        Provedores sem chave configurada são ignorados com aviso de log.
+
+        Popula self._built_llms e self._active_index para uso pelo mecanismo
+        de fallback com memória de sessão em ask() e generate_initial_report().
+
+        Returns:
+            BaseChatModel: LLM do provider primário (sem RunnableWithFallbacks —
+            o fallback é gerenciado manualmente via _advance_provider).
+
+        Raises:
+            RuntimeError: Se nenhum provedor puder ser construído.
+        """
+        provider_order_env = os.getenv("LLM_PROVIDER_ORDER", "gemini")
+        providers = [p.strip() for p in provider_order_env.split(",") if p.strip()]
+
+        self._built_llms: List[BaseChatModel] = []
+        self._active_index: int = 0
+
+        for provider in providers:
+            try:
+                llm = self._build_llm_provider(provider)
+                self._built_llms.append(llm)
+            except ValueError as exc:
+                logger.warning("Provedor '%s' ignorado: %s", provider, exc)
+
+        if not self._built_llms:
+            raise RuntimeError(
+                "Nenhum provedor de LLM configurado corretamente — verifique as API keys. "
+                f"Provedores tentados: {providers}"
+            )
+
+        resolved_names = providers[: len(self._built_llms)]
+        logger.info("LLM session chain: %s", " -> ".join(resolved_names))
+
+        # Retorna apenas o primário — o fallback é gerenciado pela sessão
+        return self._built_llms[0]
+
+    def _advance_provider(self) -> bool:
+        """
+        Avança permanentemente para o próximo provider disponível nesta sessão.
+
+        Deve ser chamado apenas após um erro de rate limit. O provider descartado
+        nunca mais é tentado na mesma sessão (instância do agente).
+        Atualiza self.llm e reconstrói self.agent_executor com o novo LLM.
+
+        Returns:
+            bool: True se havia um próximo provider; False se a cadeia se esgotou.
+        """
+        next_index = self._active_index + 1
+        if next_index >= len(self._built_llms):
+            logger.error(
+                "Rate limit atingido no último provider disponível (índice %d). "
+                "Nenhum fallback restante na sessão.",
+                self._active_index,
+            )
+            return False
+
+        self._active_index = next_index
+        self.llm = self._built_llms[self._active_index]
+        # Reconstrói o AgentExecutor pois create_react_agent bake o LLM no objeto
+        if hasattr(self, "tools"):
+            self.agent_executor = self._setup_agent()
+        logger.warning(
+            "Provider demovido por rate limit. Sessão agora usa provider índice %d.",
+            self._active_index,
+        )
+        return True
 
     def _decode_dataframe(self, df: pd.DataFrame, mappings: Dict[str, Dict[str, str]]) -> pd.DataFrame:
         """
@@ -182,8 +397,20 @@ O relatório deve cobrir:
 3. Distribuição e diagnóstico das predições de estado nutricional (quantos pacientes eutróficos, obesos, etc.).
 4. Principais insights clínicos, alertas sobre possíveis riscos à saúde nutricional encontrados e sugestões de foco de intervenção.
 """
-        response = self.llm.invoke(prompt)
-        return response.content
+        try:
+            response = self.llm.invoke(prompt)
+            return response.content
+        except _FALLBACK_EXCEPTIONS as exc:
+            if self._advance_provider():
+                logger.warning(
+                    "Falha ou rate limit no relatório inicial; retentando com provider índice %d.",
+                    self._active_index,
+                )
+                response = self.llm.invoke(prompt)
+                return response.content
+            raise RuntimeError(
+                "Erro ou rate limit em todos os providers ao gerar o relatório inicial."
+            ) from exc
 
     def _setup_tools(self) -> List[Tool]:
         """
@@ -220,16 +447,21 @@ O relatório deve cobrir:
         """
         Função de ferramenta para filtrar os pacientes baseados em expressões python pandas.
         """
-        # Limpa aspas extras que o modelo às vezes coloca
-        query_clean = query.strip().strip("'").strip('"').strip('`')
+        # Limpa apenas um nível de aspas externas redundantes (iguais) que o modelo às vezes coloca
+        query_clean = query.strip()
+        for quote in ["'", '"', '`']:
+            if query_clean.startswith(quote) and query_clean.endswith(quote) and len(query_clean) >= 2:
+                query_clean = query_clean[1:-1]
+                break
         try:
+            print(f"Filtrando registros com query: {query_clean}")
             result = self.df.query(query_clean)
             if result.empty:
                 return f"Nenhum registro encontrado para o filtro: {query_clean}"
             # Limita a resposta às primeiras 30 linhas para não estourar o contexto do agente
             return f"Registros encontrados (exibindo até 30 de {len(result)} resultados):\n" + result.head(30).to_markdown()
         except Exception as e:
-            return f"Erro ao executar o filtro '{query_clean}': {str(e)}. Por favor, utilize a sintaxe de query do pandas (ex: `SG_SEXO == 'Masculino' & NU_IDADE_ANO > 30`)."
+            return f"Erro ao executar o filtro '{query_clean}': {str(e)}. Por favor, utilize a sintaxe de query do pandas (ex: `SG_SEXO == 'M' & NU_IDADE_ANO > 30`)."
 
     def _tool_get_recommendations(self, category: str) -> str:
         """
@@ -272,8 +504,17 @@ O relatório deve cobrir:
         """
         Configura o agente ReAct clássico e seu executor.
         """
+        mappings_lines = []
+        for col, values in self.mappings.items():
+            mappings_lines.append(f"- Coluna '{col}':")
+            for k, v in values.items():
+                mappings_lines.append(f"  O valor '{k}' na base representa a categoria '{v}'")
+        
+        mappings_str = "\n".join(mappings_lines) if mappings_lines else "Nenhum mapeamento categórico disponível."
+        custom_template = REACT_PROMPT_TEMPLATE.replace("{mappings_context}", mappings_str)
+
         prompt = PromptTemplate(
-            template=REACT_PROMPT_TEMPLATE,
+            template=custom_template,
             input_variables=["tools", "tool_names", "input", "agent_scratchpad", "chat_history"]
         )
 
@@ -290,6 +531,24 @@ O relatório deve cobrir:
     def ask(self, question: str) -> str:
         """
         Envia uma pergunta ao agente ReAct, mantendo o histórico de conversa.
+
+        Em caso de rate limit do provider ativo:
+        - O provider é descartado permanentemente nesta sessão.
+        - A pergunta é retentada automaticamente com o próximo provider.
+        - Se todos os providers estiverem esgotados, levanta RuntimeError.
         """
-        response = self.agent_executor.invoke({"input": question})
-        return response["output"]
+        try:
+            response = self.agent_executor.invoke({"input": question})
+            return response["output"]
+        except _FALLBACK_EXCEPTIONS as exc:
+            if self._advance_provider():
+                logger.warning(
+                    "Retentando pergunta com provider índice %d após falha de API ou rate limit.",
+                    self._active_index,
+                )
+                response = self.agent_executor.invoke({"input": question})
+                return response["output"]
+            raise RuntimeError(
+                "Todos os provedores de LLM falharam ou atingiram o limite de taxa. "
+                "Tente novamente mais tarde."
+            ) from exc
