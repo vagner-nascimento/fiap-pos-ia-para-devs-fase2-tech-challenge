@@ -92,6 +92,12 @@ def chat(request: ChatRequest):
 
     try:
         answer = agent.ask(request.question)
+    except RuntimeError as exc:
+        # RuntimeError com "limite de taxa" ou "falharam" = todos os providers esgotados → 503
+        msg = str(exc)
+        if "limite de taxa" in msg.lower() or "rate limit" in msg.lower() or "falharam" in msg.lower():
+            raise HTTPException(status_code=503, detail=msg) from exc
+        raise HTTPException(status_code=500, detail=msg) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

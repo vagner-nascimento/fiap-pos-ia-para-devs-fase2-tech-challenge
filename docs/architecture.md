@@ -6,143 +6,203 @@ Este documento descreve a arquitetura do sistema de análise e previsão de esta
 
 ## 📂 Estrutura de Pastas e Componentes
 
-A estrutura de diretórios do projeto divide-se em componentes reais (já implementados) e estruturais/planejados para as próximas entregas da Fase 2:
-
 ```
 project-root/
-├── README.md               # Instruções gerais de instalação e setup
-├── requirements.txt        # Dependências em formato clássico txt
-├── pyproject.toml          # Configurações do projeto e dependências do UV
-├── uv.lock                 # Trava de dependências do UV
-├── .env.example            # Modelo de configuração de ambiente
-├── .gitignore              # Filtros de versionamento do Git
+├── README.md                    # Instruções gerais de instalação e setup
+├── docker-compose.yml           # Orquestração Docker (backend + frontend)
+├── restart_containers.sh/.bat   # Scripts de reinicialização rápida
 │
-├── config/                 # Configurações centralizadas
-│   └── __init__.py         # Módulo de inicialização
-│
-├── data/                   # Diretório de dados do pipeline
-│   ├── raw/                # Base SISVAN bruta (dados originais, aceita .csv ou .rar)
-│   ├── processed/          # Base processada e higienizada pós-pipeline
-│   └── .gitkeep
-│
-├── models/                 # Diretório de artefatos de IA/ML
-│   ├── artifacts/          # Modelos de Machine Learning e encoders salvos (.joblib)
-│   ├── logs/               # Histórico de execução — ga_history.json, ga_generation_stats.csv
-│   └── cache/              # Dados cacheados intermediários
-│
-├── src/                    # Código-fonte principal da aplicação
-│   ├── __init__.py
-│   ├── data/               # Subsistema de dados e transformação
-│   │   ├── __init__.py     # Definição e exportação de funções de transformação
-│   │   ├── ingest.py       # Ingestão de CSV + extração de .rar (patoolib)
-│   │   ├── features.py     # Engenharia de features e codificação de categorias
-│   │   └── preprocessing.py # Pipeline de pré-processamento (remoção, padronização)
+├── backend/
+│   ├── README.md               # Instruções detalhadas do backend
+│   ├── pyproject.toml          # Configurações do projeto e dependências (UV)
+│   ├── uv.lock                 # Trava de dependências
+│   ├── requirements.txt        # Dependências em formato clássico txt
+│   ├── .env.example            # Modelo de configuração de ambiente
 │   │
-│   ├── models/             # Algoritmo genético co-evolutivo e avaliação
-│   │   ├── __init__.py
-│   │   ├── individuo.py        # Classes Individuo (ABC), IndividuoRF, IndividuoKNN
-│   │   ├── ga_operators.py     # Operadores genéticos por tipo (crossover, mutação)
-│   │   ├── ga_evaluator.py     # Função de fitness com k-Fold CV
-│   │   ├── genetic_algorithm.py # Orquestrador GeneticAlgorithm (loop co-evolutivo)
-│   │   └── ga_persistence.py   # Save/load de resultados GA e modelos
+│   ├── config/                 # Configurações centralizadas
+│   │   └── __init__.py
 │   │
-│   ├── api/                # FastAPI — rotas REST
-│   │   ├── main.py           # Inicialização da aplicação FastAPI
-│   │   ├── job_store.py      # Store em memória para jobs assíncronos
-│   │   ├── pipeline_store.py # Estado e ordenação das etapas do pipeline
-│   │   ├── session_store.py  # Gerência de sessões do agente LLM
-│   │   └── routes/
-│   │       ├── health.py     # GET /health
-│   │       ├── pipeline.py   # POST /pipeline/preprocess|tune|predict, GET /pipeline/status|jobs
-│   │       ├── tuning.py     # POST /tuning/run, GET /tuning/datasets|jobs|logs
-│   │       └── llm.py        # POST /llm/session|chat
+│   ├── data/                   # Diretório de dados do pipeline
+│   │   ├── raw/                # Base SISVAN bruta (aceita .csv ou .rar)
+│   │   └── processed/          # Base processada e higienizada pós-pipeline
 │   │
-│   ├── agents/             # Agente LLM ReAct (NutritionalHealthAgent)
-│   ├── services/           # Lógica de negócio da API (tuning_service)
+│   ├── models/                 # Artefatos de IA/ML
+│   │   ├── artifacts/          # Modelos sklearn e encoders salvos (.joblib, .json)
+│   │   ├── logs/               # Histórico do GA (ga_history.json, ga_generation_stats.csv)
+│   │   └── cache/              # Dados intermediários cacheados
 │   │
-│   └── utils/              # Funções utilitárias auxiliares
-│       ├── __init__.py
-│       ├── logger.py       # Sistema de logs centralizado
-│       ├── persistence.py  # Funções de leitura/escrita de dados e modelos
-│       └── validators.py   # Validação de tipos e restrições de dados do SISVAN
+│   ├── src/                    # Código-fonte principal
+│   │   ├── agents/             # Agente LLM ReAct
+│   │   │   └── nutritional_agent.py  # NutritionalHealthAgent + PatchedChatOpenAI
+│   │   │
+│   │   ├── api/                # FastAPI — rotas REST
+│   │   │   ├── main.py           # Inicialização FastAPI + CORS
+│   │   │   ├── job_store.py      # Store em memória para jobs assíncronos
+│   │   │   ├── pipeline_store.py # Estado e ordenação das etapas do pipeline
+│   │   │   ├── session_store.py  # Gerência de sessões do agente LLM
+│   │   │   └── routes/
+│   │   │       ├── health.py     # GET /health
+│   │   │       ├── pipeline.py   # POST /pipeline/preprocess|tune|predict
+│   │   │       ├── tuning.py     # POST /tuning/run, GET /tuning/datasets|jobs|logs
+│   │   │       └── llm.py        # POST /llm/session|chat
+│   │   │
+│   │   ├── data/               # Subsistema de dados e transformação
+│   │   │   ├── ingest.py       # Ingestão CSV + extração .rar (patoolib)
+│   │   │   ├── features.py     # Engenharia de features e codificação
+│   │   │   └── preprocessing.py # Pipeline de pré-processamento
+│   │   │
+│   │   ├── models/             # Algoritmo genético co-evolutivo
+│   │   │   ├── individuo.py        # Hierarquia Individuo (ABC), IndividuoRF, IndividuoKNN
+│   │   │   ├── ga_operators.py     # Crossover uniforme e mutação por agressividade
+│   │   │   ├── ga_evaluator.py     # Fitness com k-Fold CV (F1×0.6 + Acc×0.4)
+│   │   │   ├── genetic_algorithm.py # Loop co-evolutivo + parada dupla
+│   │   │   └── ga_persistence.py   # Save/load de resultados GA e modelos
+│   │   │
+│   │   ├── services/           # Lógica de negócio da API
+│   │   │   └── tuning_service.py
+│   │   │
+│   │   └── utils/              # Funções utilitárias
+│   │       ├── logger.py       # Sistema de logs centralizado
+│   │       ├── persistence.py  # Leitura/escrita de dados e modelos
+│   │       └── validators.py   # Validação de tipos e restrições SISVAN
+│   │
+│   ├── scripts/                # Scripts CLI
+│   │   ├── run_preprocessing.py # Pré-processamento dos dados brutos
+│   │   ├── run_tuning.py        # CLI do GA Co-Evolutivo
+│   │   ├── run_predictions.py   # Gera predições com o modelo treinado
+│   │   └── validate_tools.py    # Teste interativo das ferramentas do agente (mock LLM)
+│   │
+│   ├── docs/                   # Documentação do projeto (dentro do backend)
+│   │   ├── architecture.md     # Este arquivo
+│   │   ├── adr.md              # Architecture Decision Records
+│   │   └── resumo-melhorias-agente-llm-fallback.md  # Histórico de decisões do agente LLM
+│   │
+│   └── tests/                  # Suíte de testes (313 testes)
+│       ├── unit/               # Testes unitários (13 arquivos)
+│       │   ├── test_ga_operators.py    # Crossover, mutação por agressividade
+│       │   ├── test_ga_evaluator.py    # Fitness, fallback mock, k_folds
+│       │   ├── test_ga_persistence.py  # Save/load de resultados e histórico
+│       │   ├── test_ga_snapshot.py     # Snapshots incrementais de gerações
+│       │   ├── test_individuo.py       # IndividuoRF, IndividuoKNN, build_model
+│       │   ├── test_features.py        # Engenharia de features
+│       │   ├── test_preprocessing.py   # Pipeline de pré-processamento
+│       │   ├── test_ingest.py          # Ingestão CSV e extração .rar
+│       │   ├── test_api_stores.py      # JobStore, PipelineStore, SessionStore
+│       │   ├── test_services.py        # TuningService e lógica de negócio
+│       │   ├── test_utils.py           # Logger, persistence, validators
+│       │   └── test_llm_agent.py       # Agente ReAct, fallback multi-provedor, PatchedChatOpenAI
+│       │
+│       └── integration/        # Testes de integração (4 arquivos)
+│           ├── test_ga_optimizer.py    # GA Co-Evolutivo end-to-end
+│           ├── test_api_pipeline.py    # Pipeline REST assíncrono
+│           ├── test_api_routes.py      # Rotas gerais da API
+│           └── test_api_tuning.py      # Rotas de tuning
 │
-├── scripts/                # Scripts utilitários de linha de comando
-│   ├── README.md           # Descrição dos scripts disponíveis
-│   ├── run_preprocessing.py # Pré-processamento dos dados brutos (leitura, limpeza, features)
-│   ├── run_tuning.py       # Script CLI do Algoritmo Genético (GA Co-Evolutivo)
-│   └── run_predictions.py  # Gera predições usando o modelo treinado
+├── frontend/
+│   ├── README.md               # Instruções detalhadas do frontend
+│   ├── pyproject.toml
+│   ├── .env.example
+│   │
+│   ├── app/
+│   │   ├── main.py             # Página inicial (status da API + navegação)
+│   │   └── pages/
+│   │       ├── 01_preprocessing.py  # Console de pré-processamento com logs em tempo real
+│   │       ├── 02_tuning.py         # Dashboard GA Co-Evolutivo (gráficos Plotly incrementais)
+│   │       ├── 03_predictions.py    # Visualização de predições do modelo
+│   │       ├── 04_llm_chat.py       # Chat com o Agente de Saúde Nutricional
+│   │       ├── 04_model_comparison.py  # Comparação de modelos RF vs KNN
+│   │       └── 05_pipeline_explanation.py  # Explicação do pipeline para o usuário
+│   │
+│   └── src/
+│       └── api_client.py       # Cliente HTTP para o backend
 │
-├── docs/                   # Documentação do projeto
-│   ├── architecture.md     # Este arquivo — visão geral da arquitetura
-│   ├── adr.md              # Architecture Decision Records (decisões de design)
-│   └── plan-fluxo2-training-and-tunning.md # Plano de implementação do GA
+├── docs/                       # Documentação raiz do projeto
+│   ├── architecture.md         # Arquitetura técnica detalhada (este arquivo)
+│   ├── adr.md                  # Architecture Decision Records
+│   ├── gap_analysis.md         # Análise de gaps do projeto
+│   └── resumo-melhorias-agente-llm-fallback.md  # Histórico de melhorias do agente LLM
 │
-└── tests/                  # Suíte de testes automatizados (74 testes)
-    ├── __init__.py
-    ├── unit/               # Testes unitários (53 testes)
-    │   ├── test_ga_operators.py    # 26: crossover (indpb=0/0.5/1.0), mutação por magnitude, ranges
-    │   ├── test_ga_evaluator.py    # 12: fitness, fallback real (mock), propagação k_folds
-    │   └── test_llm_agent.py       # 15: inicialização e ferramentas do agente ReAct
-    └── integration/        # Testes de integração (21 testes)
-        └── test_ga_optimizer.py    # GA Co-Evolutivo end-to-end: elitismo/monotonia,
-                                     #   elitismo estrutural, torneio, convergência, reprodutibilidade
+└── experiments/
+    └── llm_quality_eval.md     # Avaliação qualitativa do agente (rubrica, perguntas-teste)
 ```
-
-### Estratégia de Testes
-
-A suíte valida **comportamento correto** (não apenas "não quebra"), organizada em duas camadas:
-
-**Testes unitários** (`tests/unit/`) — rápidos, sem k-Fold CV completo:
-- **Operadores genéticos**: valida que `indpb=0.5` produz ~50% de swap estatístico (ADR-003); ordenação de magnitude `high >= medium >= low` para RF (`n_estimators`) e KNN (`n_neighbors`) (ADR-008)
-- **Evaluator**: fallback `(0.0, 0.0)` via `unittest.mock` (força exceção real em `build_model()`); propagação correta de `k_folds` para `cross_val_score`
-
-**Testes de integração** (`tests/integration/`) — GA Co-Evolutivo end-to-end com dados sintéticos (100 amostras, k=3):
-- **Elitismo** (ADR-009): `global_best_f1` é monotônica não-decrescente com `elitism=True`
-- **Elitismo estrutural mínimo** (ADR-004): RF e KNN com `count >= 1` em todas as gerações
-- **Seleção por torneio**: indivíduo com fitness 0.9 vence >50% dos torneios vs. fitness 0.1
-- **Convergência**: ao parar por `"convergence"`, as últimas gerações exibem plateau real
-- **Reprodutibilidade completa**: mesma seed produz mesmos `hyperparams` e `fitness_values`
 
 ---
 
 ## 🤖 Arquitetura do Agente de Saúde Nutricional
 
-O agente de apoio à decisão clínica e estatística está implementado na classe `NutritionalHealthAgent` em `src/agents/nutritional_agent.py`. 
+O agente de apoio à decisão clínica está implementado na classe `NutritionalHealthAgent` em [`src/agents/nutritional_agent.py`](file:///home/luizbaroni/projetos/fiap/fiap-pos-ia-para-devs-fase2-tech-challenge/backend/src/agents/nutritional_agent.py).
 
 ### 1. Padrão de Projeto ReAct (Reasoning and Acting)
-O agente utiliza o padrão **ReAct**, o qual alterna ciclos de raciocínio (Thought) e ações (Action) em cima de ferramentas para resolver perguntas complexas de dados de forma iterativa. Ele executa o seguinte fluxo:
-1. Recebe a pergunta do usuário.
-2. Analisa se precisa consultar estatísticas, filtrar dados de pacientes ou buscar diretrizes médicas.
-3. Executa a ferramenta correta (**Action**) com o parâmetro adequado (**Action Input**).
-4. Analisa a saída da ferramenta (**Observation**).
-5. Se necessário, repete o ciclo ou formula a resposta final em português no formato padrão (**Final Answer**).
 
-### 2. Integração com Google AI (Gemini) e LangChain
-A integração do agente com a API do Gemini é construída usando a biblioteca `langchain_google_genai`:
-* **Classe LLM**: `ChatGoogleGenerativeAI`.
-* **Segurança da Chave**: A API Key do Gemini é fornecida no arquivo `.env` como `LLM_API_KEY`. Durante a inicialização do agente, ela é dinamicamente injetada na variável de ambiente local `GOOGLE_API_KEY`, garantindo a autenticação automática nos SDKs do Google sem expor segredos no código-fonte.
-* **Memória**: Utiliza `ConversationBufferMemory` configurada para armazenar o histórico de mensagens em formato de string. Isso permite que o modelo recorde perguntas anteriores e mantenha uma conversação fluida e contínua.
-* **Orquestração**: O agente é criado utilizando a função `create_react_agent` e encapsulado em um `AgentExecutor` configurado com `handle_parsing_errors=True` para tratar com segurança qualquer resposta fora do padrão ReAct esperado.
+O agente utiliza o padrão **ReAct**, alternando ciclos de raciocínio (Thought) e ações (Action) em cima de ferramentas para resolver perguntas complexas:
 
-### 3. Ferramentas Disponíveis ao Agente (Tools)
+1. Recebe a pergunta do usuário
+2. Analisa se precisa consultar estatísticas, filtrar dados ou buscar diretrizes médicas
+3. Executa a ferramenta correta (**Action**) com o parâmetro adequado (**Action Input**)
+4. Analisa a saída da ferramenta (**Observation**)
+5. Repete o ciclo ou formula a **Final Answer** em português
 
-O agente tem acesso a três ferramentas customizadas baseadas nos dados dos pacientes carregados:
+### 2. Fallback Multi-Provedor Stateful
 
-*   **`get_nutrition_statistics`**:
-    *   **Descrição**: Gera estatísticas descritivas básicas das colunas numéricas e calcula a frequência das classificações do estado nutricional (predições de ML).
-    *   **Método interno**: `_tool_get_statistics()`.
-*   **`filter_nutrition_records`**:
-    *   **Descrição**: Permite a execução de consultas e filtros avançados nos dados utilizando a sintaxe nativa de queries do Pandas.
-    *   **Método interno**: `_tool_filter_records(query)`. Limita automaticamente o resultado a 30 linhas para não ultrapassar a janela de contexto da API do LLM.
-*   **`get_clinical_recommendations`**:
-    *   **Descrição**: Fornece diretrizes e recomendações clínicas e dietéticas de referência baseadas em um diagnóstico de estado nutricional consultado (como Obesidade, Eutrofia, Sobrepeso ou Desnutrição/Baixo Peso).
-    *   **Método interno**: `_tool_get_recommendations(category)`.
+O agente implementa um **fallback com memória de sessão** para alta disponibilidade:
+
+```
+LLM_PROVIDER_ORDER=gemini,openai,openrouter
+```
+
+- **`_built_llms`**: lista de todos os provedores instanciados na inicialização
+- **`_active_index`**: índice do provedor ativo na sessão
+- **`_advance_provider()`**: promove permanentemente para o próximo provedor ao detectar rate limit, timeout ou erro de servidor (sem voltar ao primário na mesma sessão)
+- **Retry transparente**: a pergunta que sofreu falha é retentada automaticamente com o novo provedor antes de reportar erro ao usuário
+- **HTTP 503**: se todos os provedores falharem, a rota `/llm/chat` retorna 503 (Service Unavailable) em vez de 500 genérico
+
+Exceções que disparam avanço de provedor (`_FALLBACK_EXCEPTIONS`):
+- `OpenAIRateLimitError`, `OpenAIConnectionError`, `OpenAITimeoutError`, `OpenAIInternalServerError`
+- `GoogleAPICallError` (google-api-core)
+
+### 3. PatchedChatOpenAI — Auto-Recovery de Parâmetro `stop`
+
+Modelos de raciocínio da OpenAI (ex: `o1`, `o3-mini`, `gpt-5-nano`) e via OpenRouter não aceitam o parâmetro `stop` na API, mas o LangChain ReAct Agent o injeta por padrão.
+
+A classe `PatchedChatOpenAI` resolve isso em duas camadas:
+
+```
+LangChain ReAct Agent
+  └─► _generate(messages, stop=["Observation:"])
+        └─► _get_request_payload(messages, stop=stop)   ← ponto real de injeção
+              └─► {"messages": [...], "stop": [...]}    ← enviado para a API
+```
+
+- **`_get_request_payload`** (sobrescrito): remove `stop` do payload quando `drop_stop=True` — *antes* do payload ser enviado à API
+- **`_generate`** (sobrescrito): intercepta `BadRequestError` com mensagem contendo `"stop"`, ativa `drop_stop=True` e retenta a chamada de forma transparente
+- Configurável via `OPENAI_DROP_STOP=true` / `OPENROUTER_DROP_STOP=true` no `.env` para saltar o primeiro erro
+
+### 4. Provedores Suportados
+
+| Provedor | Classe | Variáveis de Ambiente |
+|----------|--------|-----------------------|
+| Google Gemini | `ChatGoogleGenerativeAI` | `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_TEMPERATURE` |
+| OpenAI | `PatchedChatOpenAI` | `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_TEMPERATURE`, `OPENAI_DROP_STOP` |
+| OpenRouter | `PatchedChatOpenAI` | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `OPENROUTER_TEMPERATURE`, `OPENROUTER_DROP_STOP` |
+
+### 5. Ferramentas Disponíveis ao Agente (Tools)
+
+| Ferramenta | Método Interno | Uso |
+|---|---|---|
+| `get_nutrition_statistics` | `_tool_get_statistics()` | Estatísticas descritivas + distribuição das predições de ML |
+| `filter_nutrition_records` | `_tool_filter_records(query)` | Filtros com sintaxe `pandas.query` (limita a 30 linhas) |
+| `get_clinical_recommendations` | `_tool_get_recommendations(category)` | Diretrizes clínicas por estado nutricional |
+
+### 6. Memória e Histórico de Sessão
+
+- **`ConversationBufferMemory`** (`memory_key="chat_history"`, `return_messages=False`): armazena o histórico completo como string formatada, injetada no prompt ReAct
+- O histórico é mantido por sessão (instância do agente), persistido no `session_store.py` da API
 
 ---
 
 ## 🧬 Algoritmo Genético Co-Evolutivo
 
-O módulo de tuning de hiperparâmetros está implementado em `src/models/` e usa uma abordagem **co-evolutiva** com duas populações independentes: **RandomForest (RF)** e **KNeighborsClassifier (KNN)**.
+O módulo de tuning de hiperparâmetros está em `src/models/` e usa uma abordagem **co-evolutiva** com duas populações independentes: **RandomForest (RF)** e **KNeighborsClassifier (KNN)**.
 
 ### Hierarquia de Classes
 
@@ -152,7 +212,7 @@ Individuo (ABC)
 └── IndividuoKNN → Pipeline([('scaler', StandardScaler()), ('clf', KNN(...))])
 ```
 
-> KNN inclui `StandardScaler` obrigatório pois é sensível à escala das features. RF é invariante à escala e não precisa de pré-processamento adicional.
+> KNN inclui `StandardScaler` obrigatório pois é sensível à escala das features. RF é invariante à escala.
 
 ### Fluxo Co-Evolutivo por Geração
 
@@ -171,7 +231,7 @@ flowchart TD
     G --> H
     H["crossover_rf (cxUniform) + mutate_rf\ncrossover_knn (cxUniform) + mutate_knn"] --> I
     I["Reinsere elite\n(substitui pior da sub-pop)"] --> J
-    J["Logar stats da geração\n{rf_*, knn_*, global_best_*}"] --> K
+    J["Logar stats da geração\n{rf_*, knn_*, global_best_*}\n→ snapshot JSONL"] --> K
     K{"gen >= max_generations?"}
     K -- Sim --> L["Parar: reason=max_generations"]
     K -- Não --> B
@@ -181,11 +241,11 @@ flowchart TD
 
 | Módulo | Responsabilidade |
 |---|---|
-| [`individuo.py`](file:///home/luizbaroni/projetos/fiap/fiap-pos-ia-para-devs-fase2-tech-challenge/src/models/individuo.py) | Hierarquia `Individuo` → `IndividuoRF` / `IndividuoKNN` com pipeline sklearn |
-| [`ga_operators.py`](file:///home/luizbaroni/projetos/fiap/fiap-pos-ia-para-devs-fase2-tech-challenge/src/models/ga_operators.py) | Geração aleatória, crossover uniforme (cxUniform em dicts nomeados), mutação com 3 níveis |
-| [`ga_evaluator.py`](file:///home/luizbaroni/projetos/fiap/fiap-pos-ia-para-devs-fase2-tech-challenge/src/models/ga_evaluator.py) | `evaluate()` agnóstico ao tipo; `fitness_score()` = F1×0.6 + Acc×0.4 |
-| [`genetic_algorithm.py`](file:///home/luizbaroni/projetos/fiap/fiap-pos-ia-para-devs-fase2-tech-challenge/src/models/genetic_algorithm.py) | `GeneticAlgorithm`: loop co-evolutivo, parada dupla, elitismo configurável |
-| [`ga_persistence.py`](file:///home/luizbaroni/projetos/fiap/fiap-pos-ia-para-devs-fase2-tech-challenge/src/models/ga_persistence.py) | `save_ga_results()` (JSON + CSV), `save_best_model()` treina e persiste via joblib |
+| `individuo.py` | Hierarquia `Individuo` → `IndividuoRF` / `IndividuoKNN` com pipeline sklearn |
+| `ga_operators.py` | Geração aleatória, crossover uniforme (cxUniform em dicts nomeados), mutação com 3 níveis |
+| `ga_evaluator.py` | `evaluate()` agnóstico ao tipo; `fitness_score()` = F1×0.6 + Acc×0.4 |
+| `genetic_algorithm.py` | `GeneticAlgorithm`: loop co-evolutivo, parada dupla, elitismo configurável |
+| `ga_persistence.py` | `save_ga_results()` (JSON + CSV), `save_best_model()` treina e persiste via joblib |
 
 ### Parâmetros Configuráveis
 
@@ -201,29 +261,37 @@ flowchart TD
 | `cxpb` | `--cxpb` | 0.7 | Prob. de crossover |
 | `mutpb` | `--mutpb` | 0.3 | Prob. de mutação |
 | `random_seed` | `--random-seed` | 42 | Semente para reprodutibilidade |
-| `sample_size` | `--sample` | 50000 | Tamanho máximo da amostragem (0 para base completa) |
+| `sample_size` | `--sample` | 50000 | Tamanho máximo da amostragem (0 = base completa) |
 
 ---
 
 ## ⚙️ Variáveis de Ambiente e Configuração
 
-A inicialização dos componentes e conexões depende das variáveis configuradas no arquivo `.env`. As chaves críticas são:
-
 | Variável | Descrição | Valor Padrão / Exemplo |
 | :--- | :--- | :--- |
-| `LLM_API_KEY` | Chave de API gerada no Google AI Studio | `AIzaSy...` |
-| `LLM_MODEL` | Modelo Gemini utilizado para o agente | `gemini-2.5-flash` |
-| `LLM_TEMPERATURE` | Nível de criatividade das respostas do agente | `0.7` |
+| `LLM_PROVIDER_ORDER` | Ordem dos provedores LLM (vírgula separada) | `gemini,openai,openrouter` |
+| `LLM_API_KEY` | Chave API Gemini (retrocompatibilidade) | `AIzaSy...` |
+| `LLM_MODEL` | Modelo Gemini (retrocompatibilidade) | `gemini-2.5-flash` |
+| `GEMINI_API_KEY` | Chave API Google Gemini | `AIzaSy...` |
+| `GEMINI_MODEL` | Modelo Gemini a usar | `gemini-2.5-flash-lite` |
+| `GEMINI_TEMPERATURE` | Criatividade das respostas Gemini | `0.7` |
+| `OPENAI_API_KEY` | Chave API OpenAI | `sk-proj-...` |
+| `OPENAI_MODEL` | Modelo OpenAI a usar | `gpt-4o` |
+| `OPENAI_TEMPERATURE` | Criatividade das respostas OpenAI | `0.7` |
+| `OPENAI_DROP_STOP` | Remove `stop` do payload (modelos de raciocínio) | `false` |
+| `OPENROUTER_API_KEY` | Chave API OpenRouter | `sk-or-v1-...` |
+| `OPENROUTER_MODEL` | Modelo via OpenRouter | `meta-llama/llama-3.3-70b-instruct:free` |
+| `OPENROUTER_TEMPERATURE` | Criatividade das respostas OpenRouter | `0.7` |
+| `OPENROUTER_DROP_STOP` | Remove `stop` do payload (modelos de raciocínio) | `false` |
 | `DATA_PATH` | Caminho base dos arquivos de dados | `./data` |
 | `MODEL_PATH` | Caminho de exportação de encoders e modelos | `./models/artifacts` |
 | `LOG_LEVEL` | Nível de depuração do sistema | `INFO` |
 | `RANDOM_SEED` | Semente para reprodutibilidade estocástica | `42` |
+| `CORS_ORIGINS` | Origens permitidas pelo CORS | `http://localhost:8501` |
 
 ---
 
 ## 📈 Fluxo de Execução do Pipeline Geral
-
-O processamento e interação com o sistema se desenvolvem em três etapas macro:
 
 ```mermaid
 graph TD
@@ -235,57 +303,91 @@ graph TD
     P -->|"Carregamento"| D["Frontend Streamlit\n../frontend/"]
     B -->|"API REST"| D
     D -->|HTTP| API["Backend FastAPI\nsrc/api/"]
-    API -->|Instancia| E["Agente de Saúde ReAct"]
+    API -->|Instancia| E["Agente de Saúde ReAct\nNutritionalHealthAgent"]
     API -->|Orquestra| F["Pipeline: preprocess → tune → predict"]
-    E -->|"Usa Chave Gemini"| G["Google Gemini API"]
+    E -->|"Fallback multi-provedor"| G1["Google Gemini API"]
+    E -->|"Fallback"| G2["OpenAI API"]
+    E -->|"Fallback"| G3["OpenRouter API"]
 ```
 
-1. **Pipeline de Dados**: O endpoint `POST /pipeline/preprocess` (ou o script `run_preprocessing.py`) ingere o dataset bruto em CSV ou `.rar` (extração automática via `patoolib`), remove gestantes (se ativado), realiza imputações necessárias, executa a engenharia de features e codifica colunas qualitativas, gravando os encoders criados.
+1. **Pipeline de Dados**: `POST /pipeline/preprocess` ingere CSV ou `.rar` (extração via `patoolib`), remove gestantes (se ativado), realiza imputações, executa engenharia de features e codifica colunas qualitativas.
 
-2. **Treinamento e Tuning**: O endpoint `POST /pipeline/tune` (ou `run_tuning.py`) executa o **GA Co-Evolutivo** sobre os dados processados. Mantém duas populações independentes (RF e KNN) que competem pelo fitness global (F1×0.6 + Acc×0.4 via k-Fold CV). Ao final, persiste:
-   - `models/artifacts/best_model.joblib` — pipeline sklearn do modelo vencedor
-   - `models/logs/ga_history.json` — histórico completo de todas as gerações
-   - `models/logs/ga_generation_stats.csv` — tabela por geração com stats de RF, KNN e global
+2. **Treinamento e Tuning**: `POST /pipeline/tune` executa o **GA Co-Evolutivo** com duas populações (RF e KNN) competindo pelo fitness global (F1×0.6 + Acc×0.4 via k-Fold CV). A cada geração concluída, um snapshot é persistido em `/tmp/ag_job_{job_id}_generations.jsonl` para polling incremental pelo frontend. Artefatos finais: `best_model.joblib`, `ga_history.json`, `ga_generation_stats.csv`.
 
-3. **Predições**: O endpoint `POST /pipeline/predict` (ou `run_predictions.py`) aplica o modelo treinado sobre os dados processados, gerando `models/artifacts/predictions.csv`.
+3. **Predições**: `POST /pipeline/predict` aplica o modelo treinado sobre os dados processados, gerando `predictions.csv`.
 
-4. **Interface Visual e Agente**: O front-end Streamlit (`../frontend/`) consome a API REST do backend:
-    - Painel **🧬 Tuning Genético** ([`frontend/app/pages/02_tuning.py`](file:///home/luizbaroni/projetos/fiap/fiap-pos-ia-para-devs-fase2-tech-challenge/frontend/app/pages/02_tuning.py)): dashboard em tempo real via `/pipeline/tune` e polling de gerações via `/tuning/jobs/{id}/generations`
-    - Painel **💬 Agente Nutricional** ([`frontend/app/pages/04_llm_chat.py`](file:///home/luizbaroni/projetos/fiap/fiap-pos-ia-para-devs-fase2-tech-challenge/frontend/app/pages/04_llm_chat.py)): chat interativo via `/llm/session` e `/llm/chat`
+4. **Interface Visual e Agente**: O frontend Streamlit consome a API REST:
+   - **🗂 Pré-processamento** (`01_preprocessing.py`): console de logs em tempo real via `/pipeline/jobs/{id}/logs`
+   - **🧬 Tuning Genético** (`02_tuning.py`): dashboard com gráficos Plotly atualizados incrementalmente via `/tuning/jobs/{id}/generations`
+   - **📊 Predições** (`03_predictions.py`): visualização do CSV de predições
+   - **💬 Agente Nutricional** (`04_llm_chat.py`): chat ReAct via `/llm/session` e `/llm/chat`
+   - **🔬 Comparação de Modelos** (`04_model_comparison.py`): comparativo RF vs KNN
+   - **📖 Explicação do Pipeline** (`05_pipeline_explanation.py`): guia didático para o usuário
 
 ---
 
 ## 🔄 Pipeline API — Orquestração por Etapas
 
-A rota `src/api/routes/pipeline.py` expõe um pipeline orquestrado em 3 etapas com jobs assíncronos. Cada etapa é acionada por um `POST` e monitorada via polling em `GET /pipeline/jobs/{job_id}`.
+A rota `src/api/routes/pipeline.py` expõe um pipeline orquestrado em 3 etapas com jobs assíncronos. Cada etapa é acionada por `POST` e monitorada via polling em `GET /pipeline/jobs/{job_id}`.
 
 ### Endpoints
 
 | Método | Rota | Pré-requisito | Descrição |
 |--------|------|----------------|----------|
-| `POST` | `/pipeline/preprocess` | `.csv` ou `.rar` em `data/raw/` | Pré-processamento completo (extrai .rar, limpa, gera features) |
-| `POST` | `/pipeline/tune` | `preprocess` concluído | GA Co-Evolutivo (RF vs KNN) com suporte a snapshots em tempo real |
+| `POST` | `/pipeline/preprocess` | `.csv` ou `.rar` em `data/raw/` | Pré-processamento completo |
+| `POST` | `/pipeline/tune` | `preprocess` concluído | GA Co-Evolutivo com snapshots em tempo real |
 | `POST` | `/pipeline/predict` | `tune` concluído | Gera `predictions.csv` com o melhor modelo |
-| `GET` | `/pipeline/status` | — | Estado atual de cada etapa do pipeline |
+| `GET` | `/pipeline/status` | — | Estado atual de cada etapa |
 | `GET` | `/pipeline/jobs/{id}` | — | Status e resultado de um job |
-| `GET` | `/pipeline/jobs/{id}/logs` | — | Logs de execução em tempo real do pré-processamento |
-| `GET` | `/tuning/jobs/{id}/generations` | — | Endpoint incremental de snapshots de gerações (polling em tempo real) |
+| `GET` | `/pipeline/jobs/{id}/logs` | — | Logs de execução do pré-processamento |
+| `GET` | `/tuning/jobs/{id}/generations` | — | Snapshots incrementais de gerações (polling) |
+| `POST` | `/llm/session` | — | Cria sessão do agente LLM (upload CSV) |
+| `POST` | `/llm/chat` | Sessão ativa | Pergunta ao agente ReAct |
 
 ### Padrão de Job Assíncrono com Monitoramento em Tempo Real
 
-1. O frontend inicia o tuning ou o pré-processamento:
+1. O frontend inicia a operação:
    ```
    POST /pipeline/preprocess ou POST /pipeline/tune (assíncrono)
      → retorna { "job_id": "uuid" } imediatamente
    ```
 
 2. Enquanto o job executa no backend:
-   - **Tuning (GA):** A cada geração concluída no loop de `GeneticAlgorithm.run()`, um snapshot é persistido em `/tmp/ag_job_{job_id}_generations.jsonl`. O frontend faz polling reativo em `GET /tuning/jobs/{job_id}/generations?since=N` e renderiza gráficos e métricas de forma incremental.
-   - **Pré-processamento:** O script Python `scripts/run_preprocessing.py` é iniciado como um processo em background via `subprocess.Popen` com redirecionamento de `stdout`/`stderr` para `/tmp/preprocessing_{job_id}.log`. O frontend lê esses logs incrementalmente via `GET /pipeline/jobs/{job_id}/logs` e os apresenta no console da interface.
+   - **Tuning (GA):** a cada geração concluída, um snapshot é persistido em JSONL. O frontend faz polling em `GET /tuning/jobs/{job_id}/generations?since=N` e renderiza gráficos incrementalmente.
+   - **Pré-processamento:** `scripts/run_preprocessing.py` é iniciado via `subprocess.Popen` com redirecionamento de stdout/stderr para `/tmp/preprocessing_{job_id}.log`. O frontend lê esses logs via `GET /pipeline/jobs/{job_id}/logs`.
 
 3. Quando o job conclui:
-   - Os endpoints de monitoramento retornam o status `"completed"` ou `"failed"`.
-   - O frontend interrompe o ciclo de polling e exibe o estado final (dados limpos, estatísticas ou descrição do erro).
+   - Os endpoints de monitoramento retornam `"completed"` ou `"failed"`
+   - O frontend interrompe o ciclo de polling e exibe o estado final
 
-Para evitar problemas de memória e timeouts, a execução do pré-processamento e de predições é delegada a subprocessos CLI Python (`scripts/run_*.py`), enquanto a etapa de tuning é executada diretamente pelo `tuning_service` (permitindo monitoramento em tempo real do progresso).
+---
 
+## 🧪 Estratégia de Testes
+
+A suíte conta com **313 testes** no total, validando comportamento correto organizado em duas camadas:
+
+### Testes Unitários (`tests/unit/`)
+
+| Arquivo | Área | Destaques |
+|---|---|---|
+| `test_ga_operators.py` | Operadores genéticos | crossover (indpb=0/0.5/1.0), mutação por magnitude (high ≥ medium ≥ low) |
+| `test_ga_evaluator.py` | Evaluator | fallback `(0.0, 0.0)`, propagação correta de k_folds |
+| `test_ga_persistence.py` | Persistência GA | Save/load JSON+CSV, histórico de gerações |
+| `test_ga_snapshot.py` | Snapshots | Snapshots incrementais em JSONL durante o tuning |
+| `test_individuo.py` | Indivíduo | IndividuoRF, IndividuoKNN, build_model, pipeline sklearn |
+| `test_features.py` | Engenharia de features | Codificação de categorias, imputação |
+| `test_preprocessing.py` | Pré-processamento | Limpeza, remoção de gestantes, padronização |
+| `test_ingest.py` | Ingestão | Leitura CSV, extração .rar |
+| `test_api_stores.py` | Stores da API | JobStore, PipelineStore, SessionStore |
+| `test_services.py` | Services | TuningService, lógica de negócio |
+| `test_utils.py` | Utilitários | Logger, persistence, validators |
+| `test_llm_agent.py` | Agente LLM | Inicialização, fallback multi-provedor, PatchedChatOpenAI auto-recovery, ferramentas ReAct |
+
+### Testes de Integração (`tests/integration/`)
+
+| Arquivo | Área | Destaques |
+|---|---|---|
+| `test_ga_optimizer.py` | GA end-to-end | Elitismo/monotonia, torneio, convergência, reprodutibilidade por seed |
+| `test_api_pipeline.py` | Pipeline REST | Jobs assíncronos, logs, orquestração de etapas |
+| `test_api_routes.py` | Rotas gerais | Health check, endpoints de dataset, estrutura de respostas |
+| `test_api_tuning.py` | Rotas de tuning | Execução GA via API, polling de gerações |

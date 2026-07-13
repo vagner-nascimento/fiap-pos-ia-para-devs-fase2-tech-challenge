@@ -185,13 +185,13 @@ def standardize_nutritional_categories(df: pd.DataFrame) -> pd.DataFrame:
 
 def convert_numeric_columns(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Converte colunas numéricas de string (com vírgulas) para float.
+    Converte colunas numéricas de string (com vírgulas) para os tipos adequados.
 
     Args:
         df (pd.DataFrame): DataFrame com colunas numéricas em formato string.
 
     Returns:
-        pd.DataFrame: DataFrame com colunas numéricas em formato float.
+        pd.DataFrame: DataFrame com colunas numéricas convertidas.
     """
     logger.info("Convertendo colunas numéricas...")
     
@@ -207,8 +207,18 @@ def convert_numeric_columns(df: pd.DataFrame) -> pd.DataFrame:
                 .str.replace(",", ".")
                 .astype(float)
             )
+            
+    if "NU_IDADE_ANO" in df_clean.columns:
+        df_clean["NU_IDADE_ANO"] = (
+            df_clean["NU_IDADE_ANO"]
+            .astype(str)
+            .str.strip()
+            .str.replace(",", ".")
+            .astype(float)
+            .astype(int)
+        )
     
-    logger.info(f"Colunas numéricas convertidas: {numeric_columns}")
+    logger.info(f"Colunas numéricas convertidas. NU_IDADE_ANO convertida para int.")
     return df_clean
 
 
