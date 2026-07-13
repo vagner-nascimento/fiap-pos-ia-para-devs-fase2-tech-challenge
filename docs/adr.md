@@ -443,3 +443,84 @@ O pipeline de pré-processamento executa como um subprocesso em segundo plano e 
 - O arquivo de log permanece disponível para consulta mesmo após a conclusão do processamento.
 - Sem necessidade de dependências complexas de streaming bidirecional no Streamlit.
 
+---
+
+## ADR-016 — Fallback Multi-Provedor Stateful para o Agente LLM
+
+**Data**: 2026-07  
+**Status**: Aceito
+
+### Contexto
+
+O agente `NutritionalHealthAgent` precisa ser resiliente a falhas de rate limit e indisponibilidade da API do provedor LLM primário. O LangChain oferece o mecanismo `RunnableWithFallbacks` (via `.with_fallbacks()`), mas ele é **stateless** por design: a cada pergunta, sempre recomeça tentando pelo primeiro provedor da lista. Isso causa comportamento ineficiente quando o provedor primário está sofrendo rate limit — cada mensagem do usuário acumularia a latência de falha do primário antes de cair para o fallback.
+
+### Alternativas Consideradas
+
+| Alternativa | Prós | Contras |
+|---|---|---|
+| `RunnableWithFallbacks` do LangChain | API simples | Stateless — sempre retenta o primário; latência acumulada em rate limit |
+| Retry com backoff no provedor primário | Simples | Bloqueia a interface do usuário por longos períodos |
+| **Fallback stateful manual (sessão)** | Avanço permanente no rate limit; retry transparente | Requer gestão de estado explícita na instância do agente |
+
+### Decisão
+
+**Fallback stateful gerenciado manualmente** via atributos `_built_llms` (lista de provedores instanciados) e `_active_index` (índice do provedor ativo na sessão):
+
+- `_advance_provider()`: promove permanentemente para o próximo provedor ao detectar falha, sem voltar ao primário na mesma sessão
+- Retry transparente: a pergunta que sofreu falha é retentada automaticamente com o novo provedor
+- Se todos os provedores falharem, a rota `/llm/chat` retorna HTTP 503 (Service Unavailable)
+- Exceções que disparam avanço: `RateLimitError`, `APIConnectionError`, `APITimeoutError`, `InternalServerError` (OpenAI) e `GoogleAPICallError` (Google)
+
+### Consequências
+
+- O `AgentExecutor` é reconstruído dinamicamente a cada avanço de provedor (pois `create_react_agent` bake o LLM no objeto)
+- A reconstrução é protegida por `hasattr(self, 'tools')` para evitar falhas durante o `__init__` (antes das ferramentas serem definidas)
+- Provedores sem chave configurada são automaticamente ignorados na inicialização com aviso de log
+- A ordem dos provedores é configurável via `LLM_PROVIDER_ORDER` no `.env`
+
+---
+
+## ADR-017 — PatchedChatOpenAI: Auto-Recovery do Parâmetro `stop`
+
+**Data**: 2026-07  
+**Status**: Aceito
+
+### Contexto
+
+Modelos de raciocínio da OpenAI (ex: `o1`, `o3-mini`, `gpt-5-nano`) e via OpenRouter não aceitam o parâmetro `stop` na API, retornando `HTTP 400 BadRequestError` com a mensagem `"Unsupported parameter: 'stop' is not supported with this model."`. O LangChain ReAct Agent injeta `stop=["Observation:"]` por padrão em todas as chamadas.
+
+### Diagnóstico Técnico
+
+O parâmetro `stop` é injetado no payload JSON da API pelo método interno `_get_request_payload`, que é chamado *dentro* de `_generate` e `_stream`. Interceptar apenas `_generate` sobrescrevendo o argumento `stop=None` **não é suficiente**, pois `super()._generate()` chama `_get_request_payload` internamente, que reinsere o `stop` via `kwargs` ou `_default_params`.
+
+```
+LangChain ReAct Agent
+  └─► _generate(messages, stop=["Observation:"])   ← argumento interceptável
+        └─► _get_request_payload(messages, stop=stop)  ← ponto real de injeção
+              └─► {"messages": [...], "stop": [...]}   ← enviado à API
+```
+
+### Alternativas Consideradas
+
+| Alternativa | Prós | Contras |
+|---|---|---|
+| Sobrescrever apenas `_generate` | Simples | Insuficiente: `super()._generate()` reinjecta o `stop` via `_get_request_payload` |
+| Configuração manual `OPENAI_DROP_STOP=true` | Elimina o primeiro erro | Requer configuração explícita por modelo |
+| **Sobrescrever `_get_request_payload` + auto-recovery em `_generate`** | Elimina o `stop` no ponto real; funciona automaticamente | Dependência do método privado do LangChain (mas estável) |
+
+### Decisão
+
+Classe `PatchedChatOpenAI(ChatOpenAI)` com duas camadas de proteção:
+
+1. **`_get_request_payload`** (sobrescrito): quando `drop_stop=True`, remove `stop=None` e `kwargs.pop("stop")` *antes* do payload ser construído — elimina o parâmetro no ponto de origem
+2. **`_generate`** (sobrescrito): intercepta `BadRequestError` com mensagem contendo `"stop"`, ativa `drop_stop=True` e retenta de forma transparente — auto-recovery na primeira falha
+
+Para modelos conhecidos que não suportam `stop`, configure `OPENAI_DROP_STOP=true` ou `OPENROUTER_DROP_STOP=true` no `.env` para eliminar o erro mesmo na primeira chamada.
+
+### Consequências
+
+- `logger` deve ser declarado antes da classe `PatchedChatOpenAI` para evitar `NameError` no bloco de auto-recovery (exceção capturada antes do logger ser definido)
+- A flag `drop_stop` é persistida na instância do modelo: uma vez ativada, permanece ativa para todas as chamadas subsequentes naquela sessão
+- A classe é reutilizável para qualquer provedor OpenAI-compatível (incluindo OpenRouter)
+- Adicionado ao `_FALLBACK_EXCEPTIONS` apenas erros de disponibilidade; `BadRequestError` de `stop` é tratado localmente sem acionar o fallback de provedor
+
