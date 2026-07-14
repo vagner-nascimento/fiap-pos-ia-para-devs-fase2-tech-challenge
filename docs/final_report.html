@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório Técnico - FIAP Pós-IA Fase 2: Tech Challenge</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .section {
+            margin-bottom: 40px;
+            padding: 30px;
+            background-color: #f9f9f9;
+            border-left: 4px solid #667eea;
+            border-radius: 5px;
+        }
+
+        h2 {
+            color: #667eea;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        h3 {
+            color: #764ba2;
+            font-size: 1.4em;
+            margin: 20px 0 10px 0;
+        }
+
+        h4 {
+            color: #555;
+            font-size: 1.2em;
+            margin: 15px 0 8px 0;
+        }
+
+        p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+
+        ul, ol {
+            margin-left: 30px;
+            margin-bottom: 15px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .highlight {
+            background-color: #e8f4f8;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border-left: 3px solid #17a2b8;
+        }
+
+        .warning {
+            background-color: #fff3cd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border-left: 3px solid #ffc107;
+        }
+
+        .success {
+            background-color: #d4edda;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border-left: 3px solid #28a745;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background-color: white;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #667eea;
+            color: white;
+            font-weight: bold;
+        }
+
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .code-block {
+            background-color: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .metric-card {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin: 10px 0;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .metric-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        footer {
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            margin-top: 40px;
+        }
+
+        @media print {
+            body {
+                background-color: white;
+            }
+            .container {
+                box-shadow: none;
+            }
+            .section {
+                page-break-inside: avoid;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .grid-2, .grid-3 {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Relatório Técnico</h1>
+            <p>FIAP Pós-IA Fase 2: Tech Challenge - Sistema de Análise Nutricional SISVAN</p>
+            <p>Algoritmo Genético Co-Evolutivo e Agente LLM ReAct</p>
+        </header>
+
+        <section class="section">
+            <h2>1. Resumo Executivo</h2>
+            <p>Este relatório apresenta o desenvolvimento e implementação de um sistema completo de análise e previsão de estado nutricional baseado em dados do SISVAN (Sistema de Vigilância Alimentar e Nutricional). O projeto integra técnicas avançadas de Machine Learning com Inteligência Artificial Generativa, utilizando um algoritmo genético co-evolutivo para otimização de hiperparâmetros e um agente LLM ReAct para análise clínica interativa.</p>
+            
+            <div class="highlight">
+                <strong>Principais Conquistas:</strong>
+                <ul>
+                    <li>Implementação de Algoritmo Genético Co-Evolutivo com duas populações (RandomForest e KNN)</li>
+                    <li>Otimização de hiperparâmetros alcançando F1-score de 98.79% e acurácia de 98.79%</li>
+                    <li>Agente LLM com fallback multi-provedor (Gemini, OpenAI, OpenRouter)</li>
+                    <li>Avaliação qualitativa do agente alcançando média 4.80/5.0</li>
+                    <li>Arquitetura escalável com API REST e interface Streamlit</li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>2. Implementação do Algoritmo Genético e Resultados da Otimização</h2>
+            
+            <h3>2.1 Arquitetura Co-Evolutiva</h3>
+            <p>O sistema implementa um algoritmo genético co-evolutivo inovador que mantém duas populações independentes competindo pelo fitness global. Esta abordagem permite explorar eficientemente o espaço de busca de hiperparâmetros para dois tipos de modelos com características distintas.</p>
+
+            <div class="grid-2">
+                <div class="metric-card">
+                    <div class="metric-value">RandomForest</div>
+                    <div class="metric-label">População 1 - Árvores de Decisão</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">KNeighbors</div>
+                    <div class="metric-label">População 2 - Baseado em Distância</div>
+                </div>
+            </div>
+
+            <h3>2.2 Hierarquia de Classes</h3>
+            <p>A implementação segue uma hierarquia orientada a objetos bem definida:</p>
+            <div class="code-block">
+Individuo (ABC)
+├── IndividuoRF  → Pipeline([('clf', RandomForestClassifier(...))])
+└── IndividuoKNN → Pipeline([('scaler', StandardScaler()), ('clf', KNN(...))])
+            </div>
+
+            <h3>2.3 Espaço de Hiperparâmetros</h3>
+            <table>
+                <tr>
+                    <th>Modelo</th>
+                    <th>Hiperparâmetro</th>
+                    <th>Range/Valores</th>
+                    <th>Tipo</th>
+                </tr>
+                <tr>
+                    <td rowspan="5">RandomForest</td>
+                    <td>n_estimators</td>
+                    <td>[10, 500]</td>
+                    <td>int</td>
+                </tr>
+                <tr>
+                    <td>max_depth</td>
+                    <td>[2, 30]</td>
+                    <td>int</td>
+                </tr>
+                <tr>
+                    <td>min_samples_split</td>
+                    <td>[2, 20]</td>
+                    <td>int</td>
+                </tr>
+                <tr>
+                    <td>min_samples_leaf</td>
+                    <td>[1, 10]</td>
+                    <td>int</td>
+                </tr>
+                <tr>
+                    <td>criterion</td>
+                    <td>['gini', 'entropy']</td>
+                    <td>str</td>
+                </tr>
+                <tr>
+                    <td rowspan="4">KNeighbors</td>
+                    <td>n_neighbors</td>
+                    <td>[1, 30]</td>
+                    <td>int</td>
+                </tr>
+                <tr>
+                    <td>weights</td>
+                    <td>['uniform', 'distance']</td>
+                    <td>str</td>
+                </tr>
+                <tr>
+                    <td>metric</td>
+                    <td>['euclidean', 'manhattan', 'minkowski']</td>
+                    <td>str</td>
+                </tr>
+                <tr>
+                    <td>algorithm</td>
+                    <td>['auto', 'ball_tree', 'kd_tree']</td>
+                    <td>str</td>
+                </tr>
+            </table>
+
+            <h3>2.4 Função de Fitness</h3>
+            <p>A função de fitness combina duas métricas para lidar com o desbalanceamento de classes:</p>
+            <div class="code-block">
+fitness = F1_weighted × 0.6 + Accuracy × 0.4
+            </div>
+            <p>Esta abordagem prioriza o F1-score (sensível ao desbalanceamento) enquanto mantém a acurácia como métrica secundária, garantindo que modelos não ignorem classes minoritárias.</p>
+
+            <h3>2.5 Operadores Genéticos</h3>
+            <h4>Crossover Uniforme Adaptado</h4>
+            <p>Implementação customizada de crossover uniforme para dicionários nomeados, onde cada gene tem probabilidade <code>indpb</code> de ser trocado entre os pais:</p>
+            <div class="code-block">
+for key in dict1:
+    if random.random() < indpb:
+        dict1[key], dict2[key] = dict2[key], dict1[key]
+            </div>
+
+            <h4>Mutação por Agressividade</h4>
+            <p>Sistema de mutação com três níveis de intensidade:</p>
+            <table>
+                <tr>
+                    <th>Nível</th>
+                    <th>mutation_rate</th>
+                    <th>delta_pct (numérico)</th>
+                </tr>
+                <tr>
+                    <td>low</td>
+                    <td>0.1</td>
+                    <td>±10% do range</td>
+                </tr>
+                <tr>
+                    <td>medium</td>
+                    <td>0.2</td>
+                    <td>±30% do range</td>
+                </tr>
+                <tr>
+                    <td>high</td>
+                    <td>0.4</td>
+                    <td>±60% do range</td>
+                </tr>
+            </table>
+
+            <h3>2.6 Resultados da Otimização</h3>
+            <p>Os resultados experimentais demonstram a eficácia do algoritmo genético co-evolutivo:</p>
+            
+            <div class="success">
+                <strong>Melhor Configuração Encontrada:</strong>
+                <ul>
+                    <li><strong>Tipo:</strong> RandomForest</li>
+                    <li><strong>n_estimators:</strong> 451</li>
+                    <li><strong>max_depth:</strong> 14</li>
+                    <li><strong>min_samples_split:</strong> 3</li>
+                    <li><strong>min_samples_leaf:</strong> 1</li>
+                    <li><strong>criterion:</strong> entropy</li>
+                    <li><strong>F1-Score:</strong> 0.9879 (98.79%)</li>
+                    <li><strong>Acurácia:</strong> 0.9879 (98.79%)</li>
+                </ul>
+            </div>
+
+            <h4>Evolução por Geração</h4>
+            <table>
+                <tr>
+                    <th>Geração</th>
+                    <th>RF Best F1</th>
+                    <th>RF Avg F1</th>
+                    <th>KNN Best F1</th>
+                    <th>KNN Avg F1</th>
+                    <th>Global Best</th>
+                    <th>Global Type</th>
+                </tr>
+                <tr>
+                    <td>1</td>
+                    <td>0.9871</td>
+                    <td>0.9332</td>
+                    <td>0.9669</td>
+                    <td>0.9633</td>
+                    <td>0.9871</td>
+                    <td>RF</td>
+                </tr>
+                <tr>
+                    <td>2</td>
+                    <td>0.9871</td>
+                    <td>0.9821</td>
+                    <td>0.9679</td>
+                    <td>0.9649</td>
+                    <td>0.9871</td>
+                    <td>RF</td>
+                </tr>
+                <tr>
+                    <td>3</td>
+                    <td>0.9877</td>
+                    <td>0.9817</td>
+                    <td>0.9679</td>
+                    <td>0.9675</td>
+                    <td>0.9877</td>
+                    <td>RF</td>
+                </tr>
+                <tr>
+                    <td>4</td>
+                    <td>0.9877</td>
+                    <td>0.9872</td>
+                    <td>0.9677</td>
+                    <td>0.9677</td>
+                    <td>0.9877</td>
+                    <td>RF</td>
+                </tr>
+                <tr>
+                    <td>5</td>
+                    <td>0.9879</td>
+                    <td>0.9876</td>
+                    <td>0.9679</td>
+                    <td>0.9679</td>
+                    <td>0.9879</td>
+                    <td>RF</td>
+                </tr>
+                <tr>
+                    <td>6</td>
+                    <td>0.9879</td>
+                    <td>0.9877</td>
+                    <td>0.9671</td>
+                    <td>0.9671</td>
+                    <td>0.9879</td>
+                    <td>RF</td>
+                </tr>
+                <tr>
+                    <td>7</td>
+                    <td>0.9879</td>
+                    <td>0.9878</td>
+                    <td>0.9674</td>
+                    <td>0.9674</td>
+                    <td>0.9879</td>
+                    <td>RF</td>
+                </tr>
+                <tr>
+                    <td>8</td>
+                    <td>0.9879</td>
+                    <td>0.9878</td>
+                    <td>0.9651</td>
+                    <td>0.9651</td>
+                    <td>0.9879</td>
+                    <td>RF</td>
+                </tr>
+                <tr>
+                    <td>9</td>
+                    <td>0.9879</td>
+                    <td>0.9866</td>
+                    <td>0.9628</td>
+                    <td>0.9628</td>
+                    <td>0.9879</td>
+                    <td>RF</td>
+                </tr>
+            </table>
+
+            <div class="highlight">
+                <strong>Análise dos Resultados:</strong>
+                <ul>
+                    <li>RandomForest demonstrou superioridade consistente em todas as 9 gerações</li>
+                    <li>Convergência alcançada na geração 5 com parada antecipada na geração 9 (patience=4)</li>
+                    <li>Elitismo efetivo na preservação do melhor indivíduo</li>
+                    <li>Pressão seletiva global mantendo diversidade entre populações</li>
+                    <li>Melhoria progressiva da média da população RF ao longo das gerações</li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>3. Integração com LLMs: Abordagem Sensível ao Gênero</h2>
+            
+            <h3>3.1 Arquitetura do Agente ReAct</h3>
+            <p>O agente de saúde nutricional implementa o padrão ReAct (Reasoning and Acting), alternando ciclos de raciocínio e ações para resolver perguntas complexas sobre os dados nutricionais.</p>
+
+            <div class="code-block">
+Ciclo ReAct:
+Thought → Action → Action Input → Observation → Final Answer
+            </div>
+
+            <h3>3.2 Fallback Multi-Provedor Stateful</h3>
+            <p>Implementação inovadora de fallback com memória de sessão para alta disponibilidade:</p>
+            <div class="highlight">
+                <strong>Características do Fallback:</strong>
+                <ul>
+                    <li><strong>Stateful:</strong> O provider descartado não é retentado na mesma sessão</li>
+                    <li><strong>Retry Transparente:</strong> Perguntas com falha são automaticamente retentadas</li>
+                    <li><strong>HTTP 503:</strong> Retorna erro de serviço indisponível quando todos falham</li>
+                    <li><strong>Configurável:</strong> Ordem definida via LLM_PROVIDER_ORDER</li>
+                </ul>
+            </div>
+
+            <table>
+                <tr>
+                    <th>Provedor</th>
+                    <th>Classe</th>
+                    <th>Variáveis de Ambiente</th>
+                </tr>
+                <tr>
+                    <td>Google Gemini</td>
+                    <td>ChatGoogleGenerativeAI</td>
+                    <td>GEMINI_API_KEY, GEMINI_MODEL</td>
+                </tr>
+                <tr>
+                    <td>OpenAI</td>
+                    <td>PatchedChatOpenAI</td>
+                    <td>OPENAI_API_KEY, OPENAI_MODEL, OPENAI_DROP_STOP</td>
+                </tr>
+                <tr>
+                    <td>OpenRouter</td>
+                    <td>PatchedChatOpenAI</td>
+                    <td>OPENROUTER_API_KEY, OPENROUTER_MODEL, OPENROUTER_DROP_STOP</td>
+                </tr>
+            </table>
+
+            <h3>3.3 PatchedChatOpenAI - Auto-Recovery do Parâmetro 'stop'</h3>
+            <p>Modelos de raciocínio da OpenAI (o1, o3-mini, gpt-5-nano) não aceitam o parâmetro <code>stop</code>. A classe <code>PatchedChatOpenAI</code> resolve isso em duas camadas:</p>
+            <div class="warning">
+                <strong>Problema:</strong> LangChain ReAct injeta stop=["Observation:"] por padrão, causando BadRequestError em modelos de raciocínio.
+            </div>
+            <div class="success">
+                <strong>Solução:</strong>
+                <ol>
+                    <li><strong>_get_request_payload</strong>: Remove stop quando drop_stop=True</li>
+                    <li><strong>_generate</strong>: Intercepta BadRequestError e ativa auto-recovery</li>
+                </ol>
+            </div>
+
+            <h3>3.4 Abordagem Sensível ao Gênero</h3>
+            <p>O sistema implementa sensibilidade ao gênero através de múltiplas camadas:</p>
+            
+            <h4>Decodificação de Categorias</h4>
+            <p>O sistema decodifica automaticamente variáveis categóricas como <code>SG_SEXO</code> (0 → Masculino, 1 → Feminino) para garantir interpretação correta pelo agente LLM.</p>
+
+            <h4>Prompt Engineering</h4>
+            <p>O template ReAct inclui contexto explícito sobre mapeamentos de colunas e categorias:</p>
+            <div class="code-block">
+Mapeamentos de Colunas e Categorias na Base (Mapeamentos do Encoder):
+{mappings_context}
+            </div>
+
+            <h4>Ferramentas de Análise</h4>
+            <p>O agente dispõe de ferramentas específicas para análise demográfica:</p>
+            <table>
+                <tr>
+                    <th>Ferramenta</th>
+                    <th>Método</th>
+                    <th>Uso</th>
+                </tr>
+                <tr>
+                    <td>get_nutrition_statistics</td>
+                    <td>_tool_get_statistics()</td>
+                    <td>Estatísticas descritivas + distribuição</td>
+                </tr>
+                <tr>
+                    <td>filter_nutrition_records</td>
+                    <td>_tool_filter_records(query)</td>
+                    <td>Filtros com sintaxe pandas.query</td>
+                </tr>
+                <tr>
+                    <td>get_clinical_recommendations</td>
+                    <td>_tool_get_recommendations(category)</td>
+                    <td>Diretrizes clínicas por estado nutricional</td>
+                </tr>
+            </table>
+
+            <h3>3.5 Avaliação da Qualidade do LLM</h3>
+            <p>Protocolo de avaliação qualitativa com rubrica de 1-5 pontos em três dimensões:</p>
+
+            <div class="grid-3">
+                <div class="metric-card">
+                    <div class="metric-value">4.80</div>
+                    <div class="metric-label">Precisão Clínica</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">4.60</div>
+                    <div class="metric-label">Completude</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">5.00</div>
+                    <div class="metric-label">Linguagem Adequada</div>
+                </div>
+            </div>
+
+            <h4>Resultados por Pergunta-Teste</h4>
+            <table>
+                <tr>
+                    <th>#</th>
+                    <th>Pergunta</th>
+                    <th>Ferramenta</th>
+                    <th>Precisão</th>
+                    <th>Completude</th>
+                    <th>Linguagem</th>
+                    <th>Média</th>
+                </tr>
+                <tr>
+                    <td>Q1</td>
+                    <td>Distribuição dos estados</td>
+                    <td>STATS</td>
+                    <td>5</td>
+                    <td>5</td>
+                    <td>5</td>
+                    <td>5.00</td>
+                </tr>
+                <tr>
+                    <td>Q2</td>
+                    <td>Média de idade</td>
+                    <td>STATS</td>
+                    <td>5</td>
+                    <td>4</td>
+                    <td>5</td>
+                    <td>4.67</td>
+                </tr>
+                <tr>
+                    <td>Q3</td>
+                    <td>Contagem Obesidade Grave</td>
+                    <td>FILTER</td>
+                    <td>5</td>
+                    <td>5</td>
+                    <td>5</td>
+                    <td>5.00</td>
+                </tr>
+                <tr>
+                    <td>Q4</td>
+                    <td>Pacientes > 60 anos</td>
+                    <td>FILTER</td>
+                    <td>5</td>
+                    <td>4</td>
+                    <td>5</td>
+                    <td>4.67</td>
+                </tr>
+                <tr>
+                    <td>Q5</td>
+                    <td>Recomendações Obesidade Grave</td>
+                    <td>REC</td>
+                    <td>5</td>
+                    <td>5</td>
+                    <td>5</td>
+                    <td>5.00</td>
+                </tr>
+                <tr>
+                    <td>Q6</td>
+                    <td>Recomendações Eutrofia</td>
+                    <td>REC</td>
+                    <td>5</td>
+                    <td>4</td>
+                    <td>5</td>
+                    <td>4.67</td>
+                </tr>
+                <tr>
+                    <td>Q7</td>
+                    <td>IMC médio por sexo</td>
+                    <td>FILTER</td>
+                    <td>4</td>
+                    <td>5</td>
+                    <td>5</td>
+                    <td>4.67</td>
+                </tr>
+                <tr>
+                    <td>Q8</td>
+                    <td>Resumo do perfil populacional</td>
+                    <td>STATS</td>
+                    <td>5</td>
+                    <td>5</td>
+                    <td>5</td>
+                    <td>5.00</td>
+                </tr>
+                <tr>
+                    <td>Q9</td>
+                    <td>Paciente de maior peso</td>
+                    <td>FILTER</td>
+                    <td>4</td>
+                    <td>4</td>
+                    <td>5</td>
+                    <td>4.33</td>
+                </tr>
+                <tr>
+                    <td>Q10</td>
+                    <td>Taxa de mortalidade (armadilha)</td>
+                    <td>—</td>
+                    <td>5</td>
+                    <td>5</td>
+                    <td>5</td>
+                    <td>5.00</td>
+                </tr>
+            </table>
+
+            <div class="highlight">
+                <strong>Destaque:</strong> A pergunta Q10 (armadilha sobre mortalidade) demonstrou que o agente corretamente recusa inventar dados inexistentes, alcançando nota máxima em todas as dimensões.
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>4. Comparativo de Desempenho: Modelos Originais vs Otimizados</h2>
+            
+            <h3>4.1 Métricas de Desempenho</h3>
+            <p>Comparação detalhada entre os modelos originais (hiperparâmetros padrão) e o modelo otimizado pelo algoritmo genético:</p>
+
+            <table>
+                <tr>
+                    <th>Métrica</th>
+                    <th>Modelo Otimizado (Best)</th>
+                    <th>KNN Original</th>
+                    <th>RF Original</th>
+                    <th>Melhoria vs KNN</th>
+                    <th>Melhoria vs RF</th>
+                </tr>
+                <tr>
+                    <td>Acurácia</td>
+                    <td>0.9885 (98.85%)</td>
+                    <td>0.9685 (96.85%)</td>
+                    <td>0.9884 (98.84%)</td>
+                    <td>+2.00%</td>
+                    <td>+0.01%</td>
+                </tr>
+                <tr>
+                    <td>Precision Macro</td>
+                    <td>0.9897 (98.97%)</td>
+                    <td>0.9696 (96.96%)</td>
+                    <td>0.9890 (98.90%)</td>
+                    <td>+2.07%</td>
+                    <td>+0.07%</td>
+                </tr>
+                <tr>
+                    <td>Recall Macro</td>
+                    <td>0.9859 (98.59%)</td>
+                    <td>0.9471 (94.71%)</td>
+                    <td>0.9866 (98.66%)</td>
+                    <td>+3.88%</td>
+                    <td>-0.07%</td>
+                </tr>
+                <tr>
+                    <td>F1 Macro</td>
+                    <td>0.9878 (98.78%)</td>
+                    <td>0.9578 (95.78%)</td>
+                    <td>0.9878 (98.78%)</td>
+                    <td>+3.00%</td>
+                    <td>0.00%</td>
+                </tr>
+                <tr>
+                    <td>Precision Weighted</td>
+                    <td>0.9885 (98.85%)</td>
+                    <td>0.9685 (96.85%)</td>
+                    <td>0.9884 (98.84%)</td>
+                    <td>+2.00%</td>
+                    <td>+0.01%</td>
+                </tr>
+                <tr>
+                    <td>Recall Weighted</td>
+                    <td>0.9885 (98.85%)</td>
+                    <td>0.9685 (96.85%)</td>
+                    <td>0.9884 (98.84%)</td>
+                    <td>+2.00%</td>
+                    <td>+0.01%</td>
+                </tr>
+                <tr>
+                    <td>F1 Weighted</td>
+                    <td>0.9885 (98.85%)</td>
+                    <td>0.9683 (96.83%)</td>
+                    <td>0.9884 (98.84%)</td>
+                    <td>+2.02%</td>
+                    <td>+0.01%</td>
+                </tr>
+            </table>
+
+            <h3>4.2 Classes de Estado Nutricional</h3>
+            <p>O modelo classifica os pacientes em 5 categorias de estado nutricional:</p>
+            <div class="grid-3">
+                <div class="metric-card">
+                    <div class="metric-value">Baixo peso</div>
+                    <div class="metric-label">Classe 1</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">Eutrofia</div>
+                    <div class="metric-label">Classe 2</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">Risco/Sobrepeso</div>
+                    <div class="metric-label">Classe 3</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">Obesidade</div>
+                    <div class="metric-label">Classe 4</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">Obesidade Grave</div>
+                    <div class="metric-label">Classe 5</div>
+                </div>
+            </div>
+
+            <h3>4.3 Análise dos Resultados</h3>
+            <div class="highlight">
+                <strong>Principais Observações:</strong>
+                <ul>
+                    <li><strong>Superioridade do RandomForest:</strong> RF demonstrou desempenho consistentemente superior ao KNN em todas as métricas</li>
+                    <li><strong>Otimização Efetiva:</strong> O modelo otimizado superou o KNN original em ~2-3% em todas as métricas</li>
+                    <li><strong>Equilíbrio de Classes:</strong> F1 macro alto indica bom desempenho mesmo em classes minoritárias</li>
+                    <li><strong>Estabilidade:</strong> Diferença mínima entre RF original e otimizado sugere que os hiperparâmetros padrão já eram razoáveis</li>
+                </ul>
+            </div>
+
+            <div class="warning">
+                <strong>Limitação:</strong> A otimização foi realizada com amostragem estratificada (sample_size=50.000) para viabilizar o tempo de execução. Resultados podem variar com o dataset completo.
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>5. Análise de Equidade: Desempenho Entre Grupos Demográficos</h2>
+            
+            <h3>5.1 Abordagem para Equidade</h3>
+            <p>O sistema incorpora múltiplas camadas para promover equidade na análise nutricional:</p>
+
+            <h4>Engenharia de Features Sensível</h4>
+            <ul>
+                <li>Decodificação de <code>SG_SEXO</code> para rótulos legíveis (Masculino/Feminino)</li>
+                <li>Preservação de <code>DS_FASE_VIDA</code> para análise por faixa etária</li>
+                <li>Inclusão de <code>NU_IDADE_ANO</code> como contínuo para granularidade</li>
+            </ul>
+
+            <h4>Fitness Function com F1-Weighted</h4>
+            <p>A função de fitness prioriza F1-weighted (60%) sobre acurácia (40%), penalizando modelos que ignoram classes minoritárias como "Baixo peso" e "Obesidade Grave".</p>
+
+            <h4>Capacidade de Análise pelo Agente LLM</h4>
+            <p>O agente pode realizar análises estratificadas por grupos demográficos através da ferramenta <code>filter_nutrition_records</code>:</p>
+            <div class="code-block">
+Exemplos de queries estratificadas:
+- SG_SEXO == 'Masculino'
+- SG_SEXO == 'Feminino' & NU_IDADE_ANO > 60
+- DS_FASE_VIDA == 'Adolescente' & Prediction == 'Obesidade'
+            </div>
+
+            <h3>5.2 Considerações de Viés</h3>
+            <div class="warning">
+                <strong>Potenciais Fontes de Viés:</strong>
+                <ul>
+                    <li><strong>Viés de Dados:</strong> O dataset SISVAN pode refletir desigualdades socioeconômicas na acessibilidade aos serviços de saúde</li>
+                    <li><strong>Viés de Medição:</strong> Peso e altura podem ser reportados de forma diferente por grupos demográficos</li>
+                    <li><strong>Viés de Modelo:</strong> RandomForest pode perpetuar padrões históricos nos dados de treinamento</li>
+                </ul>
+            </div>
+
+            <h3>5.3 Mitigações Implementadas</h3>
+            <div class="success">
+                <strong>Estratégias de Mitigação:</strong>
+                <ul>
+                    <li><strong>Validação Cruzada Estratificada:</strong> k-Fold CV mantém proporção de classes em cada fold</li>
+                    <li><strong>F1-Weighted no Fitness:</strong> Incentiva desempenho equilibrado entre classes</li>
+                    <li><strong>Transparência do Agente:</strong> O agente LLM recusa inventar dados não disponíveis</li>
+                    <li><strong>Interface de Análise:</strong> Ferramentas permitem análise explícita por grupos demográficos</li>
+                </ul>
+            </div>
+
+            <h3>5.4 Recomendações Futuras</h3>
+            <ul>
+                <li>Implementar métricas de equidade (demographic parity, equalized odds)</li>
+                <li>Análise de disparate impact por grupos demográficos</li>
+                <li>Ajuste de thresholds por grupo se necessário</li>
+                <li>Auditoria regular de viés em produção</li>
+            </ul>
+        </section>
+
+        <section class="section">
+            <h2>6. Desafios Enfrentados e Soluções Implementadas</h2>
+            
+            <h3>6.1 Desafios Técnicos</h3>
+            
+            <h4>Desafio 1: Extração de Arquivos .RAR</h4>
+            <p><strong>Problema:</strong> O dataset SISVAN é distribuído em formato .RAR, exigindo extração automática.</p>
+            <p><strong>Solução:</strong> Implementação usando <code>patoolib</code> com <code>unrar-free</code> no Docker para compatibilidade com Debian trixie.</p>
+
+            <h4>Desafio 2: Monitoramento em Tempo Real do GA</h4>
+            <p><strong>Problema:</strong> O algoritmo genético pode levar minutos para concluir, exigindo monitoramento progressivo.</p>
+            <p><strong>Solução:</strong> Sistema de snapshots incrementais em JSONL com polling via API REST para atualização fluida do dashboard.</p>
+
+            <h4>Desafio 3: Rate Limit em APIs LLM</h4>
+            <p><strong>Problema:</strong> Provedores LLM impõem limites de taxa que interrompem o serviço.</p>
+            <p><strong>Solução:</strong> Fallback stateful multi-provedor com avanço permanente e retry transparente.</p>
+
+            <h4>Desafio 4: Parâmetro 'stop' em Modelos de Raciocínio</h4>
+            <p><strong>Problema:</strong> Modelos o1/o3 da OpenAI não aceitam o parâmetro 'stop' injetado pelo LangChain.</p>
+            <p><strong>Solução:</strong> Classe <code>PatchedChatOpenAI</code> com auto-recovery em duas camadas.</p>
+
+            <h3>6.2 Desafios de Arquitetura</h3>
+            
+            <h4>Desafio 5: Jobs Assíncronos de Longa Duração</h4>
+            <p><strong>Problema:</strong> Operações de pré-processamento e tuning podem bloquear a interface.</p>
+            <p><strong>Solução:</strong> FastAPI BackgroundTasks com job store em memória e polling reativo.</p>
+
+            <h4>Desafio 6: Co-evolução de Populações Heterogêneas</h4>
+            <p><strong>Problema:</strong> RF e KNN possuem hiperparâmetros não intercambiáveis.</p>
+            <p><strong>Solução:</strong> Seleção global com elitismo estrutural mínimo para evitar extinção de tipos.</p>
+
+            <h3>6.3 Desafios de Qualidade</h3>
+            
+            <h4>Desafio 7: Avaliação de Qualidade do LLM</h4>
+            <p><strong>Problema:</strong> Métricas automáticas (BLEU/ROUGE) não medem correção clínica.</p>
+            <p><strong>Solução:</strong> Protocolo de avaliação qualitativa com rubrica humana e verificação factual determinística.</p>
+
+            <h4>Desafio 8: Alucinação em Dados Inexistentes</h4>
+            <p><strong>Problema:</strong> LLMs podem tentar "estimar" valores para perguntas fora do escopo.</p>
+            <p><strong>Solução:</strong> Guardrails no prompt e verificação de disponibilidade de colunas.</p>
+        </section>
+
+        <section class="section">
+            <h2>7. Considerações Éticas: Privacidade, Bias e Impacto Social</h2>
+            
+            <h3>7.1 Privacidade e Proteção de Dados</h3>
+            <div class="highlight">
+                <strong>Medidas de Privacidade Implementadas:</strong>
+                <ul>
+                    <li><strong>Armazenamento Local:</strong> Dados processados são mantidos localmente no container Docker</li>
+                    <li><strong>Sem PII Externa:</strong> Nenhuma informação pessoal identificável é enviada a APIs externas além do necessário</li>
+                    <li><strong>Controle de Acesso:</strong> API REST com CORS configurado para origens específicas</li>
+                    <li><strong>Logs Sanitizados:</strong> Sistema de logging evita registrar informações sensíveis</li>
+                </ul>
+            </div>
+
+            <h3>7.2 Viés e Equidade</h3>
+            <div class="warning">
+                <strong>Riscos de Viés Identificados:</strong>
+                <ul>
+                    <li><strong>Viés de Representação:</strong> Populações marginalizadas podem estar sub-representadas no dataset</li>
+                    <li><strong>Viés de Medição:</strong> Dados antropométricos podem ser menos precisos em certos grupos</li>
+                    <li><strong>Viés Algorítmico:</strong> O modelo pode perpetuar disparidades de saúde existentes</li>
+                </ul>
+            </div>
+
+            <div class="success">
+                <strong>Mitigações de Viés:</strong>
+                <ul>
+                    <li>F1-weighted no fitness para penalizar desbalanceamento de classes</li>
+                    <li>Validação cruzada estratificada</li>
+                    <li>Transparência nas recomendações do agente LLM</li>
+                    <li>Capacidade de análise estratificada por grupos demográficos</li>
+                </ul>
+            </div>
+
+            <h3>7.3 Impacto Social</h3>
+            <h4>Impactos Positivos Potenciais:</h4>
+            <ul>
+                <li><strong>Detecção Precoce:</strong> Identificação automática de riscos nutricionais em larga escala</li>
+                <li><strong>Alocação de Recursos:</strong> Direcionamento eficiente de recursos de saúde para grupos de risco</li>
+                <li><strong>Educação em Saúde:</strong> Agente LLM fornece informações clínicas acessíveis</li>
+                <li><strong>Monitoramento Populacional:</strong> Ferramenta para vigilância nutricional em saúde pública</li>
+            </ul>
+
+            <h4>Riscos Potenciais:</h4>
+            <ul>
+                <li><strong>Estigmatização:</strong> Classificação incorreta pode causar distress psicológico</li>
+                <li><strong>Automatização Excessiva:</strong> Sobre-reliância em IA pode substituir julgamento clínico</li>
+                <li><strong>Viés Sistêmico:</strong> Modelos podem reforçar desigualdades existentes</li>
+            </ul>
+
+            <h3>7.4 Recomendações Éticas</h3>
+            <div class="highlight">
+                <strong>Para Implementação em Produção:</strong>
+                <ul>
+                    <li>Revisão por comitê de ética antes de deployment clínico</li>
+                    <li>Auditoria regular de viés e disparidade</li>
+                    <li>Mecanismo de feedback e correção por profissionais de saúde</li>
+                    <li>Transparência sobre limitações do sistema aos usuários</li>
+                    <li>Consentimento informado para uso de dados</li>
+                    <li>Manutenção de supervisão humana em decisões críticas</li>
+                </ul>
+            </div>
+
+            <h3>7.5 Conformidade Regulatory</h3>
+            <ul>
+                <li><strong>LGPD:</strong> Sistema projetado com princípios de minimização de dados e propósito específico</li>
+                <li><strong>Resolução CNS:</strong> Alinhado com princípios de vigilância alimentar e nutricional</li>
+                <li><strong>Transparência:</strong> Documentação técnica completa e código aberto</li>
+            </ul>
+        </section>
+
+        <section class="section">
+            <h2>8. Conclusão e Trabalhos Futuros</h2>
+            
+            <h3>8.1 Conclusão</h3>
+            <p>O projeto "FIAP Pós-IA Fase 2: Tech Challenge" desenvolveu com sucesso um sistema integrado de análise nutricional que combina técnicas avançadas de Machine Learning com Inteligência Artificial Generativa. Os principais resultados incluem:</p>
+
+            <div class="grid-3">
+                <div class="metric-card">
+                    <div class="metric-value">98.79%</div>
+                    <div class="metric-label">F1-Score Otimizado</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">4.80/5.0</div>
+                    <div class="metric-label">Qualidade do Agente LLM</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">313</div>
+                    <div class="metric-label">Testes Implementados</div>
+                </div>
+            </div>
+
+            <p>A arquitetura co-evolutiva do algoritmo genético demonstrou eficácia na otimização de hiperparâmetros, enquanto o agente LLM com fallback multi-provedor garantiu alta disponibilidade e qualidade nas interpretações clínicas. O sistema incorpora considerações de equidade e ética em múltiplas camadas, desde a função de fitness até as recomendações do agente.</p>
+
+            <h3>8.2 Trabalhos Futuros</h3>
+            
+            <h4>Melhorias Técnicas:</h4>
+            <ul>
+                <li>Implementação de métricas de equidade explícitas (demographic parity, equalized odds)</li>
+                <li>Expansão do espaço de busca para incluir outros algoritmos (XGBoost, LightGBM)</li>
+                <li>Otimização de hiperparâmetros com Bayesian Optimization como alternativa</li>
+                <li>Implementação de aprendizado online para adaptação contínua</li>
+            </ul>
+
+            <h4>Melhorias no Agente LLM:</h4>
+            <ul>
+                <li>Redução de temperature para 0.2-0.3 em ambiente clínico</li>
+                    <li>Refinamento de guardrails anti-alucinação no prompt</li>
+                    <li>Avaliação automatizada com ROUGE-L e BERTScore</li>
+                    <li>Validação por nutricionistas para inter-rater agreement</li>
+                </ul>
+
+            <h4>Melhorias de Interface:</h4>
+            <ul>
+                <li>Dashboard de equidade com visualização de disparidades</li>
+                <li>Exportação de relatórios em formatos padrão (PDF, DOCX)</li>
+                <li>Interface mobile para acesso em campo</li>
+                <li>Sistema de notificações para alertas clínicos</li>
+            </ul>
+
+            <h4>Pesquisa e Validação:</h4>
+            <ul>
+                <li>Validação prospectiva em ambiente clínico real</li>
+                <li>Estudo de impacto na tomada de decisão clínica</li>
+                <li>Comparação com sistemas de triagem nutricional existentes</li>
+                <li>Publicação de resultados em revista científica</li>
+            </ul>
+        </section>
+
+        <section class="section">
+            <h2>9. Referências Bibliográficas</h2>
+            <ul>
+                <li>DEAP: Distributed Evolutionary Algorithms in Python. Fortin, F.-A., et al. (2012)</li>
+                <li>scikit-learn: Machine Learning in Python. Pedregosa, F., et al. (2011)</li>
+                <li>LangChain: Building applications with LLMs. Chase, H. (2023)</li>
+                <li>ReAct: Synergizing Reasoning and Acting in Language Models. Yao, S., et al. (2022)</li>
+                <li>SISVAN - Sistema de Vigilância Alimentar e Nutricional. Ministério da Saúde, Brasil</li>
+                <li>Guia Alimentar para a População Brasileira. Ministério da Saúde (2014)</li>
+            </ul>
+        </section>
+
+        <footer>
+            <p>Relatório Técnico - FIAP Pós-IA Fase 2: Tech Challenge</p>
+            <p>Julho de 2026</p>
+            <p>Desenvolvido como parte do Tech Challenge da Pós-Graduação em Inteligência Artificial para Desenvolvedores da FIAP</p>
+        </footer>
+    </div>
+</body>
+</html>
