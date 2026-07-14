@@ -256,6 +256,16 @@ uv run pytest
 
 ---
 
+## 📄 Relatórios Finais
+
+Os relatórios finais do projeto estão disponíveis na pasta `docs/`:
+
+- **[Relatório Final (HTML)](docs/final_report.html)** - Versão interativa do relatório completo
+- **[Relatório Final (PDF)](docs/final_report.pdf)** - Versão em PDF do relatório completo
+- **[IADT - Fase 2 - Tech Challenge](docs/IADT%20-%20Fase%202%20-%20Tech%20challenge-1.pdf)** - Documento oficial do Tech Challenge
+
+---
+
 ## 🤝 Contribuição
 
 Este projeto foi desenvolvido como parte do Tech Challenge da Fase 2 da Pós-Graduação em Inteligência Artificial para Desenvolvedores da FIAP.
